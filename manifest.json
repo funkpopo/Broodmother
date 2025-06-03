@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "AI Translator",
+  "version": "1.0",
+  "description": "A browser extension that uses AI to translate text.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"]
+    }
+  ]
+}
