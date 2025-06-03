@@ -1,33 +1,36 @@
-document.addEventListener('mouseup', () => {
-  const selectedText = window.getSelection().toString().trim();
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Check if the message is from our extension's background script
+  // This is a good practice, especially if other extensions might send messages.
+  if (sender.id !== chrome.runtime.id) {
+    return; // Ignore messages from other extensions
+  }
 
-  if (selectedText) {
-    chrome.runtime.sendMessage(
-      {
-        action: 'translateText',
-        selectedText: selectedText
-      },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          // Handle errors from chrome.runtime.sendMessage itself
-          alert('Error sending message to background script: ' + chrome.runtime.lastError.message);
-          return;
-        }
+  if (request.action === "displayTranslation") {
+    if (chrome.runtime.lastError) {
+        // Handle errors from the messaging system itself if any occur here
+        alert('Error receiving message from background script: ' + chrome.runtime.lastError.message);
+        return; // Stop further processing
+    }
 
-        if (response.error) {
-          let errorMessage = 'Translation Error: ' + response.error;
-          if (response.details) {
-            errorMessage += '\nDetails: ' + response.details;
-          }
-          alert(errorMessage);
-        } else if (response.translatedText) {
-          alert('Translation: ' + response.translatedText);
-        } else {
-          // This case should ideally be covered by error handling in background.js
-          // (e.g., "Translated text not found in API response")
-          alert('Received an unexpected or empty response from the background script.');
-        }
+    if (request.error) {
+      let errorMessage = 'Translation Error: ' + request.error;
+      if (request.details) {
+        errorMessage += '\nDetails: ' + request.details;
       }
-    );
+      alert(errorMessage);
+    } else if (request.translatedText) {
+      alert('Translation: ' + request.translatedText);
+    } else {
+      // This case implies the background script sent a 'displayTranslation' action
+      // without either 'translatedText' or 'error'. This should be rare
+      // given the background script's logic.
+      alert('Received an incomplete translation response from the background script.');
+    }
+
+    // Acknowledge message receipt if background script expects a response (optional)
+    // For chrome.tabs.sendMessage, a response isn't always strictly necessary unless
+    // the sender's callback is designed to wait for it or handle chrome.runtime.lastError.
+    // sendResponse({ status: "Message processed by content script." });
+    // No need to return true if sendResponse is not called or called synchronously.
   }
 });
