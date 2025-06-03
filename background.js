@@ -15,6 +15,12 @@ async function performTranslation(selectedText, callback) {
       return;
     }
 
+    // Temporary Logging Added
+    console.log('Attempting API call. Retrieved settings:');
+    console.log('API URL:', settings.apiUrl);
+    console.log('API Key (first 5 chars):', settings.apiKey ? settings.apiKey.substring(0, 5) + '...' : 'undefined/empty');
+
+
     if (!settings.apiUrl || !settings.apiKey) {
       callback({ error: 'API URL or Key not configured.' });
       return;
@@ -30,9 +36,9 @@ async function performTranslation(selectedText, callback) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': settings.apiKey
+          'Authorization': 'Bearer ' + settings.apiKey // MODIFIED: Using Bearer token
         },
-        body: JSON.stringify({ text: selectedText })
+        body: JSON.stringify({ text: selectedText }) // selectedText comes from performTranslation's argument
       });
 
       if (!response.ok) {
@@ -54,7 +60,7 @@ async function performTranslation(selectedText, callback) {
         callback({ error: 'Failed to parse API response as JSON.', details: e.message });
         return;
       }
-
+      
       let translatedText = '';
       if (data.translatedText) {
         translatedText = data.translatedText;
@@ -76,14 +82,13 @@ async function performTranslation(selectedText, callback) {
 // Listener for context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "translateSelection" && info.selectionText && tab) {
-    performTranslation(info.selectionText, (result) => {
+    // Pass info.selectionText to performTranslation
+    performTranslation(info.selectionText, (result) => { 
       if (tab.id) {
         const messagePayload = { action: "displayTranslation", ...result };
         chrome.tabs.sendMessage(tab.id, messagePayload, (response) => {
           if (chrome.runtime.lastError) {
             console.warn("Failed to send message to tab:", tab.id, chrome.runtime.lastError.message);
-            // Optionally, alert the user from background if tab messaging fails, though less common.
-            // For example, by creating a temporary notification if the content script isn't there.
           }
         });
       } else {
@@ -95,20 +100,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // Listener for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // The 'translateText' action previously handled here is now primarily driven by the context menu.
-  // If you had other actions, they would remain here.
-  // For example:
-  // if (request.action === 'someOtherAction') {
-  //   // ... handle someOtherAction ...
-  //   sendResponse({ status: 'someOtherAction processed' });
-  //   return true; // if async
-  // }
-
-  // If no other actions are handled by this listener, it can be significantly simplified or
-  // even removed if content_script.js no longer sends other types of messages.
-  // For now, we'll leave it to acknowledge it's been reviewed.
   console.log("Message received in background.js:", request);
-  // If you need to respond to *any* message, even if not handled:
-  // sendResponse({ status: "Message received, but no specific action taken for this type." });
-  // return false; // If not async. If any path is async, it should be true.
+  // Note: The 'selectedText' for the API call is now passed as an argument 
+  // to performTranslation, not taken from 'request.selectedText' here.
 });

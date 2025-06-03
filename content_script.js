@@ -26,9 +26,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // given the background script's logic.
       alert('Received an incomplete translation response from the background script.');
     }
-
+    
     // Acknowledge message receipt if background script expects a response (optional)
-    // For chrome.tabs.sendMessage, a response isn't always strictly necessary unless
+    // For chrome.tabs.sendMessage, a response isn't always strictly necessary unless 
     // the sender's callback is designed to wait for it or handle chrome.runtime.lastError.
     // sendResponse({ status: "Message processed by content script." });
     // No need to return true if sendResponse is not called or called synchronously.
