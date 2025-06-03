@@ -1,8 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
   const apiUrlInput = document.getElementById('apiUrl');
   const apiKeyInput = document.getElementById('apiKey');
+  const modelNameInput = document.getElementById('modelName'); // Get new input element
   const saveButton = document.getElementById('saveButton');
-  const statusMessage = document.getElementById('statusArea'); // Use the dedicated div
+  const statusMessage = document.getElementById('statusArea');
 
   function showStatus(message, isError = false) {
     statusMessage.textContent = message;
@@ -13,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Load settings when the popup is opened
-  chrome.storage.sync.get(['apiUrl', 'apiKey'], (result) => {
+  chrome.storage.sync.get(['apiUrl', 'apiKey', 'modelName'], (result) => { // Added 'modelName'
     if (chrome.runtime.lastError) {
       showStatus('Error loading settings: ' + chrome.runtime.lastError.message, true);
       return;
@@ -24,14 +25,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (result.apiKey) {
       apiKeyInput.value = result.apiKey;
     }
+    if (result.modelName) { // Populate modelName
+      modelNameInput.value = result.modelName;
+    }
   });
 
   // Add event listener for the "Save" button
   saveButton.addEventListener('click', () => {
     const apiUrl = apiUrlInput.value;
     const apiKey = apiKeyInput.value;
+    const modelName = modelNameInput.value; // Get modelName value
 
-    chrome.storage.sync.set({ apiUrl, apiKey }, () => {
+    chrome.storage.sync.set({ apiUrl, apiKey, modelName }, () => { // Added modelName
       if (chrome.runtime.lastError) {
         showStatus('Error saving settings: ' + chrome.runtime.lastError.message, true);
       } else {

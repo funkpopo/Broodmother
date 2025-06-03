@@ -5,7 +5,7 @@
   <style>
     body { font-family: sans-serif; width: 250px; padding: 10px; }
     div { margin-bottom: 10px; }
-    label { display: inline-block; width: 70px; }
+    label { display: inline-block; width: 80px; } /* Adjusted width for new label */
     input { width: 150px; }
     #statusArea { margin-top: 10px; min-height: 20px; }
   </style>
@@ -19,6 +19,10 @@
   <div>
     <label for="apiKey">API Key:</label>
     <input type="password" id="apiKey">
+  </div>
+  <div>
+    <label for="modelName">Model Name:</label>
+    <input type="text" id="modelName">
   </div>
   <button id="saveButton">Save</button>
   <div id="statusArea"></div>
