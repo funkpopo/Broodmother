@@ -1,93 +1,144 @@
 const OVERLAY_ID = 'aiTranslatorOverlay';
 
-function showTranslationOverlay(textToShow, isError = false) {
-  // Remove existing overlay if any
+// 获取当前主题设置
+function getCurrentTheme(callback) {
+  chrome.storage.sync.get(['currentTheme'], (result) => {
+    const theme = result.currentTheme || 'light';
+    
+    // 如果是自动主题，检测系统主题
+    if (theme === 'auto') {
+      const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      callback(prefersDarkMode ? 'dark' : 'light');
+    } else {
+      callback(theme);
+    }
+  });
+}
+
+// 根据主题获取样式
+function getThemeStyles(theme) {
+  const styles = {
+    light: {
+      backgroundColor: '#f0f8ff',
+      textColor: '#333',
+      borderColor: '#cce0ff',
+      errorBackgroundColor: '#fff0f0',
+      errorBorderColor: '#ffcccc'
+    },
+    dark: {
+      backgroundColor: '#2d3748',
+      textColor: '#e2e8f0',
+      borderColor: '#4a5568',
+      errorBackgroundColor: '#4a2c2c',
+      errorBorderColor: '#742a2a'
+    }
+  };
+  
+  return styles[theme] || styles.light;
+}
+
+function showTranslationOverlay(textToShow, configInfo = null, isError = false) {
+  // 移除现有浮层
   const existingOverlay = document.getElementById(OVERLAY_ID);
   if (existingOverlay) {
     existingOverlay.remove();
   }
 
-  // Create overlay div
-  const overlay = document.createElement('div');
-  overlay.id = OVERLAY_ID;
-  
-  // Styling
-  overlay.style.position = 'fixed';
-  overlay.style.top = '20px';
-  overlay.style.right = '20px';
-  overlay.style.backgroundColor = isError ? '#fff0f0' : '#f0f8ff'; // Lighter red/blue
-  overlay.style.border = isError ? '1px solid #ffcccc' : '1px solid #cce0ff';
-  overlay.style.padding = '15px';
-  overlay.style.borderRadius = '8px'; // Slightly more rounded
-  overlay.style.boxShadow = '0 5px 15px rgba(0,0,0,0.15)'; // Softer shadow
-  overlay.style.zIndex = '2147483647'; // Max z-index
-  overlay.style.maxWidth = '350px'; // Slightly wider
-  overlay.style.maxHeight = '250px'; // Slightly taller
-  overlay.style.overflowY = 'auto';
-  overlay.style.fontFamily = 'Arial, sans-serif'; // Common sans-serif font
-  overlay.style.fontSize = '14px';
-  overlay.style.lineHeight = '1.6';
-  overlay.style.color = '#333'; // Darker text for readability
+  // 获取当前主题
+  getCurrentTheme(theme => {
+    const styles = getThemeStyles(theme);
+    
+    // 创建浮层
+    const overlay = document.createElement('div');
+    overlay.id = OVERLAY_ID;
+    
+    // 基础样式
+    overlay.style.position = 'fixed';
+    overlay.style.top = '20px';
+    overlay.style.right = '20px';
+    overlay.style.padding = '15px';
+    overlay.style.borderRadius = '8px';
+    overlay.style.boxShadow = theme === 'dark' 
+      ? '0 5px 15px rgba(0,0,0,0.5)' 
+      : '0 5px 15px rgba(0,0,0,0.15)';
+    overlay.style.zIndex = '2147483647';
+    overlay.style.maxWidth = '350px';
+    overlay.style.maxHeight = '250px';
+    overlay.style.overflowY = 'auto';
+    overlay.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+    overlay.style.fontSize = '14px';
+    overlay.style.lineHeight = '1.6';
+    overlay.style.transition = 'all 0.2s ease';
+    
+    // 应用主题样式
+    overlay.style.backgroundColor = isError ? styles.errorBackgroundColor : styles.backgroundColor;
+    overlay.style.color = styles.textColor;
+    overlay.style.border = `1px solid ${isError ? styles.errorBorderColor : styles.borderColor}`;
+    
+    // 配置信息（如果有）
+    if (configInfo && !isError) {
+      const configHeader = document.createElement('div');
+      configHeader.style.marginBottom = '10px';
+      configHeader.style.fontSize = '12px';
+      configHeader.style.color = theme === 'dark' ? '#a0aec0' : '#6c757d';
+      configHeader.style.borderBottom = `1px solid ${styles.borderColor}`;
+      configHeader.style.paddingBottom = '5px';
+      configHeader.textContent = `使用配置: ${configInfo}`;
+      overlay.appendChild(configHeader);
+    }
 
-  // Content
-  const content = document.createElement('div');
-  // Use innerText to preserve line breaks from error details, but let browser handle HTML entities if any.
-  // For direct translation, textContent is fine. For error messages with details, innerText is better.
-  content.innerText = textToShow; 
-  overlay.appendChild(content);
+    // 内容
+    const content = document.createElement('div');
+    content.innerText = textToShow;
+    overlay.appendChild(content);
 
-  // Close button
-  const closeButton = document.createElement('button');
-  closeButton.textContent = '×'; // Nicer 'X'
-  closeButton.style.position = 'absolute';
-  closeButton.style.top = '8px'; // Adjusted for padding
-  closeButton.style.right = '10px'; // Adjusted for padding
-  closeButton.style.background = 'transparent';
-  closeButton.style.border = 'none';
-  closeButton.style.fontSize = '20px'; // Larger for easier clicking
-  closeButton.style.cursor = 'pointer';
-  closeButton.style.color = '#aaa'; // Softer color
-  closeButton.onmouseover = () => closeButton.style.color = '#333'; // Darken on hover
-  closeButton.onmouseout = () => closeButton.style.color = '#aaa'; // Revert color
-  closeButton.onclick = () => overlay.remove();
-  overlay.appendChild(closeButton);
+    // 关闭按钮
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '×';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '8px';
+    closeButton.style.right = '10px';
+    closeButton.style.background = 'transparent';
+    closeButton.style.border = 'none';
+    closeButton.style.fontSize = '20px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.color = theme === 'dark' ? '#a0aec0' : '#aaa';
+    closeButton.style.transition = 'color 0.2s';
+    closeButton.onmouseover = () => closeButton.style.color = theme === 'dark' ? '#e2e8f0' : '#333';
+    closeButton.onmouseout = () => closeButton.style.color = theme === 'dark' ? '#a0aec0' : '#aaa';
+    closeButton.onclick = () => overlay.remove();
+    overlay.appendChild(closeButton);
 
-  document.body.appendChild(overlay);
-
-  // Optional: Auto-remove overlay after some time if it's not an error
-  if (!isError) {
+    document.body.appendChild(overlay);
+    
+    // 添加进入动画
     setTimeout(() => {
-      // Check if it's still the same overlay before removing
-      const currentOverlay = document.getElementById(OVERLAY_ID);
-      if (currentOverlay === overlay) { // Ensure it wasn't replaced by another message
-         // currentOverlay.remove(); // Uncomment to enable auto-remove
-      }
-    }, 7000); // Auto-remove after 7 seconds for non-error messages
-  }
+      overlay.style.opacity = '1';
+      overlay.style.transform = 'translateY(0)';
+    }, 10);
+  });
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) {
-    return; // Ignore messages from other extensions
+    return; // 忽略来自其他扩展的消息
   }
 
   if (request.action === "displayTranslation") {
     if (chrome.runtime.lastError) {
-      showTranslationOverlay('Error receiving message from background script: ' + chrome.runtime.lastError.message, true);
+      showTranslationOverlay('接收消息时出错: ' + chrome.runtime.lastError.message, null, true);
       return;
     }
     if (request.error) {
-      let errorMessage = 'Translation Error: ' + request.error;
+      let errorMessage = '翻译错误: ' + request.error;
       if (request.details) {
-        // Replace literal \n with actual newlines for display in innerText
-        errorMessage += '\nDetails: ' + request.details.replace(/\\n/g, '\n');
+        errorMessage += '\n详情: ' + request.details.replace(/\\n/g, '\n');
       }
-      showTranslationOverlay(errorMessage, true);
+      showTranslationOverlay(errorMessage, null, true);
     } else if (request.translatedText) {
-      showTranslationOverlay(request.translatedText, false);
+      showTranslationOverlay(request.translatedText, request.configName, false);
     } else {
-      showTranslationOverlay('Received an unexpected or empty response for translation from the background script.', true);
+      showTranslationOverlay('收到意外或空的翻译响应', null, true);
     }
   }
-  // sendResponse can be used if background expects an ack, but not needed here.
 });

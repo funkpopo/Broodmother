@@ -5,68 +5,90 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Translate selected text with AI",
     contexts: ["selection"]
   });
+  
+  // 初始化默认主题
+  chrome.storage.sync.get(['currentTheme'], (result) => {
+    if (!result.currentTheme) {
+      chrome.storage.sync.set({ currentTheme: 'light' });
+    }
+  });
 });
 
 // Reusable function to perform translation
 async function performTranslation(selectedText, callback) {
-  // Fetch settings (add modelName)
-  chrome.storage.sync.get(['apiUrl', 'apiKey', 'modelName'], async (settings) => {
+  // 获取当前配置和默认语言
+  chrome.storage.sync.get(['configs', 'currentConfigId', 'defaultLanguage'], async (settings) => {
     if (chrome.runtime.lastError) {
-      callback({ error: 'Failed to retrieve settings.', details: chrome.runtime.lastError.message });
+      callback({ error: '获取配置失败', details: chrome.runtime.lastError.message });
       return;
     }
 
-    // Temporary Logging (updated)
-    console.log('Attempting API call. Retrieved settings:');
-    console.log('API URL:', settings.apiUrl);
-    console.log('API Key (first 5 chars):', settings.apiKey ? settings.apiKey.substring(0, 5) + '...' : 'undefined/empty');
-    console.log('Using Model Name:', settings.modelName); // Added modelName to logging
-
-    if (!settings.apiUrl || !settings.apiKey) {
-      callback({ error: 'API URL or Key not configured.' });
+    const configs = settings.configs || [];
+    const currentConfigId = settings.currentConfigId;
+    const defaultLanguage = settings.defaultLanguage || 'Chinese';
+    
+    // 检查是否有配置
+    if (!configs || configs.length === 0) {
+      callback({ error: '未配置API信息，请在扩展弹出窗口中设置' });
       return;
     }
-    // Add check for modelName
-    if (!settings.modelName) {
-      callback({ error: 'AI Model Name not configured.' });
+    
+    // 获取当前配置
+    const currentConfig = configs.find(config => config.id === currentConfigId);
+    if (!currentConfig) {
+      callback({ error: '当前配置无效，请在扩展弹出窗口中重新设置' });
+      return;
+    }
+    
+    const { apiUrl, apiKey, modelName, name } = currentConfig;
+
+    // 日志记录
+    console.log('使用配置:', name);
+    console.log('API URL:', apiUrl);
+    console.log('API Key (前5字符):', apiKey ? apiKey.substring(0, 5) + '...' : '未设置');
+    console.log('模型名称:', modelName);
+    console.log('目标语言:', defaultLanguage);
+
+    if (!apiUrl || !apiKey || !modelName) {
+      callback({ error: '配置信息不完整，请检查API URL、API Key和模型名称' });
       return;
     }
 
-    if (!settings.apiUrl.startsWith('http://') && !settings.apiUrl.startsWith('https://')) {
-      callback({ error: 'API URL is invalid. It must start with http:// or https://.' });
+    if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
+      callback({ error: 'API URL格式无效，必须以http://或https://开头' });
       return;
     }
 
-    // Construct the new request body
+    // 构建请求体
     const requestBody = {
-      model: settings.modelName,
+      model: modelName,
       messages: [
         {
           role: "user",
-          content: "Translate the following text into Chinese: '" + selectedText + "'"
+          content: `Translate the following text into ${defaultLanguage}: '${selectedText}'`
         }
       ]
     };
 
     try {
-      const response = await fetch(settings.apiUrl, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + settings.apiKey
+          'Authorization': 'Bearer ' + apiKey
         },
-        body: JSON.stringify(requestBody) // Use the new requestBody
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        let errorDetails = `Status: ${response.status}. `;
+        let errorDetails = `状态码: ${response.status}. `;
         try {
           const errorBody = await response.text();
-          errorDetails += `Response: ${errorBody}`;
+          errorDetails += `响应内容: ${errorBody}`;
         } catch (e) {
-          errorDetails += 'Could not retrieve error body from API response.';
+          errorDetails += '无法获取API错误详情';
         }
-        callback({ error: 'API request failed.', details: errorDetails });
+        callback({ error: 'API请求失败', details: errorDetails });
         return;
       }
 
@@ -74,30 +96,32 @@ async function performTranslation(selectedText, callback) {
       try {
         data = await response.json();
       } catch (e) {
-        callback({ error: 'Failed to parse API response as JSON.', details: e.message });
+        callback({ error: '无法解析API响应为JSON', details: e.message });
         return;
       }
       
-      // IMPORTANT: The response structure will likely change with the new request body.
-      // This part needs to be adapted based on the actual API response for chat/completion models.
-      // For now, we'll assume a common structure like OpenAI's:
-      // { "choices": [{ "message": { "content": "..." } }] }
+      // 解析API响应，支持多种格式
       let translatedText = '';
       if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
         translatedText = data.choices[0].message.content.trim();
-      } else if (data.translatedText) { // Keep old path for a bit as a fallback if structure is different
+      } else if (data.translatedText) {
         translatedText = data.translatedText;
       } else if (data.translations && Array.isArray(data.translations) && data.translations.length > 0 && data.translations[0].text) {
         translatedText = data.translations[0].text;
       } else {
-        callback({ error: 'Translated text not found in API response. Check response structure.', details: JSON.stringify(data) });
+        callback({ error: '未在API响应中找到翻译文本，请检查响应结构', details: JSON.stringify(data) });
         return;
       }
-      callback({ translatedText: translatedText });
+      
+      // 向页面发送翻译结果
+      callback({ 
+        translatedText: translatedText,
+        configName: name // 返回使用的配置名称
+      });
 
     } catch (error) {
-      console.error('API call failed:', error);
-      callback({ error: 'Network error or API endpoint not reachable.', details: error.message });
+      console.error('API调用失败:', error);
+      callback({ error: '网络错误或API端点不可访问', details: error.message });
     }
   });
 }
@@ -110,11 +134,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         const messagePayload = { action: "displayTranslation", ...result };
         chrome.tabs.sendMessage(tab.id, messagePayload, (response) => {
           if (chrome.runtime.lastError) {
-            console.warn("Failed to send message to tab:", tab.id, chrome.runtime.lastError.message);
+            console.warn("无法向标签页发送消息:", tab.id, chrome.runtime.lastError.message);
           }
         });
       } else {
-        console.warn("Context menu clicked on a tab without an ID:", tab);
+        console.warn("在无ID的标签页上点击了上下文菜单:", tab);
       }
     });
   }
@@ -122,5 +146,34 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // Listener for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("Message received in background.js:", request);
+  console.log("背景脚本收到消息:", request);
+  
+  // 处理配置变更通知
+  if (request.action === "configChanged") {
+    console.log("配置已更新");
+  }
+  
+  // 返回true表示sendResponse可能会异步调用
+  return true;
+});
+
+// 添加右键菜单动态更新，根据当前配置显示不同菜单项
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'sync' && (changes.configs || changes.currentConfigId || changes.defaultLanguage)) {
+    chrome.storage.sync.get(['configs', 'currentConfigId', 'defaultLanguage'], (result) => {
+      const configs = result.configs || [];
+      const currentConfigId = result.currentConfigId;
+      const defaultLanguage = result.defaultLanguage || 'Chinese';
+      
+      // 如果有当前配置，更新右键菜单显示
+      if (currentConfigId) {
+        const currentConfig = configs.find(config => config.id === currentConfigId);
+        if (currentConfig) {
+          chrome.contextMenus.update("translateSelection", {
+            title: `使用 "${currentConfig.name}" 翻译为${defaultLanguage}`
+          });
+        }
+      }
+    });
+  }
 });

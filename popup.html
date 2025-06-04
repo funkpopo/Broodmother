@@ -1,31 +1,398 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>AI Translator Settings</title>
   <style>
-    body { font-family: sans-serif; width: 250px; padding: 10px; }
-    div { margin-bottom: 10px; }
-    label { display: inline-block; width: 80px; } /* Adjusted width for new label */
-    input { width: 150px; }
-    #statusArea { margin-top: 10px; min-height: 20px; }
+    :root {
+      /* 亮色主题 */
+      --light-bg: #ffffff;
+      --light-text: #212529;
+      --light-border: #dee2e6;
+      --light-input-bg: #f8f9fa;
+      --light-btn-primary: #0d6efd;
+      --light-btn-text: #ffffff;
+      
+      /* 暗色主题 */
+      --dark-bg: #212529;
+      --dark-text: #f8f9fa;
+      --dark-border: #495057;
+      --dark-input-bg: #343a40;
+      --dark-btn-primary: #0d6efd;
+      --dark-btn-text: #ffffff;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      width: 350px;
+      padding: 15px;
+      margin: 0;
+      transition: all 0.3s ease;
+    }
+    
+    /* 亮色主题样式 */
+    body.light-theme {
+      background-color: var(--light-bg);
+      color: var(--light-text);
+    }
+    
+    /* 暗色主题样式 */
+    body.dark-theme {
+      background-color: var(--dark-bg);
+      color: var(--dark-text);
+    }
+    
+    /* 自动主题样式 - 会在JS中根据浏览器主题动态切换 */
+    body.auto-theme {
+      /* 默认为亮色，JS会处理切换 */
+      background-color: var(--light-bg);
+      color: var(--light-text);
+    }
+    
+    .container {
+      max-width: 100%;
+      padding: 0;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    /* 亮色主题表单控件 */
+    .light-theme input, .light-theme select, .light-theme textarea {
+      background-color: var(--light-input-bg);
+      border: 1px solid var(--light-border);
+      color: var(--light-text);
+    }
+    
+    /* 暗色主题表单控件 */
+    .dark-theme input, .dark-theme select, .dark-theme textarea {
+      background-color: var(--dark-input-bg);
+      border: 1px solid var(--dark-border);
+      color: var(--dark-text);
+    }
+    
+    /* 按钮基础样式 */
+    button {
+      padding: 8px 12px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      z-index: 1;
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    
+    .btn-primary {
+      background-color: var(--light-btn-primary);
+      color: var(--light-btn-text);
+    }
+    
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+    }
+    
+    .btn-danger {
+      background-color: #dc3545;
+      color: white;
+    }
+    
+    button:hover {
+      opacity: 0.9;
+    }
+    
+    /* 状态消息 */
+    #statusArea {
+      margin-top: 15px;
+      min-height: 20px;
+      padding: 8px;
+      border-radius: 4px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    /* 配置列表样式 */
+    .config-list {
+      margin-bottom: 15px;
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+    }
+    
+    .config-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .config-item:last-child {
+      border-bottom: none;
+    }
+    
+    .config-item.active {
+      background-color: rgba(13, 110, 253, 0.15);
+    }
+    
+    /* 顶部菜单栏 */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .theme-selector {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .theme-option {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    
+    .theme-option.active {
+      border-color: var(--light-btn-primary);
+    }
+    
+    .light-option {
+      background-color: #f8f9fa;
+    }
+    
+    .dark-option {
+      background-color: #343a40;
+    }
+    
+    .auto-option {
+      background: linear-gradient(to right, #f8f9fa 50%, #343a40 50%);
+    }
+    
+    /* Tab切换样式 */
+    .tab-container {
+      margin-bottom: 15px;
+    }
+    
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #dee2e6;
+    }
+    
+    .tab {
+      padding: 8px 15px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    
+    .tab.active {
+      border-bottom-color: var(--light-btn-primary);
+      font-weight: 500;
+    }
+    
+    .tab-content {
+      display: none;
+      padding: 15px 0;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* 导入导出按钮 */
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    /* 弹窗样式 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal-content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 80%;
+      max-width: 300px;
+    }
+    
+    .dark-theme .modal-content {
+      background-color: var(--dark-bg);
+      color: var(--dark-text);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .modal-close {
+      cursor: pointer;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .modal-body {
+      margin-bottom: 15px;
+    }
+    
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
   </style>
 </head>
-<body>
-  <h1>AI Translator Settings</h1>
-  <div>
-    <label for="apiUrl">API URL:</label>
-    <input type="text" id="apiUrl">
+<body class="light-theme">
+  <div class="container">
+    <!-- 顶部菜单栏 -->
+    <div class="top-bar">
+      <h2>AI Translator</h2>
+      <div class="theme-selector">
+        <div class="theme-option light-option active" data-theme="light" title="亮色主题"></div>
+        <div class="theme-option dark-option" data-theme="dark" title="暗色主题"></div>
+        <div class="theme-option auto-option" data-theme="auto" title="跟随浏览器"></div>
+      </div>
+    </div>
+
+    <!-- Tab切换 -->
+    <div class="tab-container">
+      <div class="tabs">
+        <div class="tab active" data-tab="configs">配置管理</div>
+        <div class="tab" data-tab="settings">设置</div>
+      </div>
+      
+      <!-- 配置管理Tab -->
+      <div class="tab-content active" id="configs-tab">
+        <div class="config-list" id="configList">
+          <!-- 配置项将由JS动态生成 -->
+        </div>
+        
+        <button id="addConfigBtn" class="btn-primary">添加新配置</button>
+        
+        <div class="form-group" id="configForm" style="margin-top: 15px;">
+          <div class="form-group">
+            <label for="configName">配置名称:</label>
+            <input type="text" id="configName" placeholder="输入配置名称">
+          </div>
+          <div class="form-group">
+            <label for="apiUrl">API URL:</label>
+            <input type="text" id="apiUrl" placeholder="例如：https://api.openai.com/v1/chat/completions">
+          </div>
+          <div class="form-group">
+            <label for="apiKey">API Key:</label>
+            <input type="password" id="apiKey" placeholder="输入API密钥">
+          </div>
+          <div class="form-group">
+            <label for="modelName">模型名称:</label>
+            <input type="text" id="modelName" placeholder="例如：gpt-3.5-turbo">
+          </div>
+          <button id="saveConfigBtn" class="btn-primary">保存配置</button>
+        </div>
+      </div>
+      
+      <!-- 设置Tab -->
+      <div class="tab-content" id="settings-tab">
+        <div class="action-buttons">
+          <button id="exportBtn" class="btn-secondary">导出所有配置</button>
+          <button id="importBtn" class="btn-secondary">导入配置</button>
+        </div>
+        <div class="form-group" style="margin-top: 15px;">
+          <label for="defaultLang">默认翻译语言:</label>
+          <select id="defaultLang">
+            <option value="Chinese">中文</option>
+            <option value="English">英文</option>
+            <option value="Japanese">日文</option>
+            <option value="Korean">韩文</option>
+            <option value="French">法文</option>
+            <option value="German">德文</option>
+            <option value="Spanish">西班牙文</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <div id="statusArea"></div>
   </div>
-  <div>
-    <label for="apiKey">API Key:</label>
-    <input type="password" id="apiKey">
+
+  <!-- 删除确认弹窗 -->
+  <div class="modal" id="deleteModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>确认删除</h3>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        确定要删除此配置吗？此操作无法撤销。
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancelDeleteBtn">取消</button>
+        <button class="btn-danger" id="confirmDeleteBtn">删除</button>
+      </div>
+    </div>
   </div>
-  <div>
-    <label for="modelName">Model Name:</label>
-    <input type="text" id="modelName">
+
+  <!-- 导入配置弹窗 -->
+  <div class="modal" id="importModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>导入配置</h3>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="importText">粘贴导出的配置数据:</label>
+          <textarea id="importText" rows="5" style="width:100%;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancelImportBtn">取消</button>
+        <button class="btn-primary" id="confirmImportBtn">导入</button>
+      </div>
+    </div>
   </div>
-  <button id="saveButton">Save</button>
-  <div id="statusArea"></div>
+
   <script src="popup.js"></script>
 </body>
 </html>
