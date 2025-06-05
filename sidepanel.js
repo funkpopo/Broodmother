@@ -138,7 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 监听窗口尺寸变化
   window.addEventListener('resize', () => {
-    updateSelectionDisplay();
+    // 只在用户没有进行选择操作时更新选择框位置
+    if (!drawing && !isDragging && !isResizing && !isPanning) {
+      updateSelectionDisplay();
+    }
   });
 
   // 启动自动刷新
@@ -330,14 +333,25 @@ document.addEventListener('DOMContentLoaded', () => {
     displayWidth = naturalWidth;
     displayHeight = naturalHeight;
     
-    // 更新选择框位置
-    updateSelectionDisplay();
+    // 只在用户没有进行选择操作时更新选择框位置
+    if (!drawing && !isDragging && !isResizing) {
+      updateSelectionDisplay();
+    }
     
     // 更新缩放级别显示
     updateZoomDisplay();
     
     // 显示缩放信息
     showSelectionFeedback(`缩放: ${Math.round(currentZoom * 100)}%`, 'info', 1500);
+  }
+
+  // 仅应用平移变换，不触发选择框更新
+  function applyPanTransform() {
+    const translateX = currentPanX;
+    const translateY = currentPanY;
+    
+    thumbnailImage.style.transform = `scale(${currentZoom}) translate(${translateX}px, ${translateY}px)`;
+    thumbnailImage.style.transformOrigin = 'top left';
   }
 
   // 更新缩放级别显示
@@ -406,6 +420,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 更新选择框显示
   function updateSelectionDisplay() {
+    // 如果用户正在进行选择操作，不要自动更新位置
+    if (drawing || isDragging || isResizing || isPanning) {
+      return;
+    }
+    
     if (!currentSelectionRatios) {
       return;
     }
@@ -479,12 +498,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const relativeX = mouseX - bounds.left;
       const relativeY = mouseY - bounds.top;
       
+      // 严格检查是否在缩略图实际区域内
       if (relativeX >= 0 && relativeX <= bounds.width && 
-          relativeY >= 0 && relativeY <= bounds.height) {
+          relativeY >= 0 && relativeY <= bounds.height &&
+          e.target === thumbnailImage) { // 只有点击在图片上才能开始选择
         startNewSelection(mouseX, mouseY, bounds);
         showSelectionFeedback('开始创建选择区域', 'info', 1500);
       } else {
-        showSelectionFeedback('请在页面预览区域内点击', 'warning');
+        showSelectionFeedback('请在页面预览图片上点击', 'warning');
       }
     }
     
@@ -497,11 +518,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function startNewSelection(mouseX, mouseY, bounds) {
     drawing = true;
-    startX_container = mouseX;
-    startY_container = mouseY;
     
-    selectionBox.style.left = mouseX + 'px';
-    selectionBox.style.top = mouseY + 'px';
+    // 确保起始点在缩略图边界内
+    const constrainedStartX = Math.max(bounds.left, Math.min(bounds.left + bounds.width, mouseX));
+    const constrainedStartY = Math.max(bounds.top, Math.min(bounds.top + bounds.height, mouseY));
+    
+    startX_container = constrainedStartX;
+    startY_container = constrainedStartY;
+    
+    selectionBox.style.left = constrainedStartX + 'px';
+    selectionBox.style.top = constrainedStartY + 'px';
     selectionBox.style.width = '0px';
     selectionBox.style.height = '0px';
     selectionBox.style.display = 'block';
@@ -518,12 +544,15 @@ document.addEventListener('DOMContentLoaded', () => {
     dragStartX = e.clientX - containerRect.left;
     dragStartY = e.clientY - containerRect.top;
     
+    // 保存当前选择框的像素坐标，避免使用比例计算导致的重置
     originalSelection = {
-      left: parseInt(selectionBox.style.left),
-      top: parseInt(selectionBox.style.top),
-      width: parseInt(selectionBox.style.width),
-      height: parseInt(selectionBox.style.height)
+      left: parseFloat(selectionBox.style.left) || 0,
+      top: parseFloat(selectionBox.style.top) || 0,
+      width: parseFloat(selectionBox.style.width) || 0,
+      height: parseFloat(selectionBox.style.height) || 0
     };
+    
+    console.log('Start drag, originalSelection:', originalSelection);
   }
 
   function startResize(e, handleClass) {
@@ -535,12 +564,15 @@ document.addEventListener('DOMContentLoaded', () => {
     dragStartX = e.clientX - containerRect.left;
     dragStartY = e.clientY - containerRect.top;
     
+    // 保存当前选择框的像素坐标，避免使用比例计算导致的重置
     originalSelection = {
-      left: parseInt(selectionBox.style.left),
-      top: parseInt(selectionBox.style.top),
-      width: parseInt(selectionBox.style.width),
-      height: parseInt(selectionBox.style.height)
+      left: parseFloat(selectionBox.style.left) || 0,
+      top: parseFloat(selectionBox.style.top) || 0,
+      width: parseFloat(selectionBox.style.width) || 0,
+      height: parseFloat(selectionBox.style.height) || 0
     };
+    
+    console.log('Start resize, originalSelection:', originalSelection);
   }
 
   // 鼠标移动事件
@@ -563,23 +595,68 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPanY = e.clientY - containerRect.top - panStartY;
         
         constrainPan();
-        applyTransform();
+        applyPanTransform();
       } else if (drawing) {
         // 创建新选择框
-        const width = Math.abs(mouseX - startX_container);
-        const height = Math.abs(mouseY - startY_container);
+        const bounds = getThumbnailBounds();
+        if (!bounds) {
+          // 如果无法获取边界，停止绘制
+          drawing = false;
+          selectionBox.style.display = 'none';
+          return;
+        }
         
-        const newLeft = Math.min(startX_container, mouseX);
-        const newTop = Math.min(startY_container, mouseY);
+        // 检查鼠标是否还在缩略图区域内
+        const relativeX = mouseX - bounds.left;
+        const relativeY = mouseY - bounds.top;
+        const isInBounds = relativeX >= -20 && relativeX <= bounds.width + 20 && 
+                          relativeY >= -20 && relativeY <= bounds.height + 20;
         
-        selectionBox.style.left = newLeft + 'px';
-        selectionBox.style.top = newTop + 'px';
-        selectionBox.style.width = width + 'px';
-        selectionBox.style.height = height + 'px';
-        
-        // 实时显示选择信息
-        if (width >= 5 && height >= 5) {
-          showSelectionFeedback(`创建中: ${Math.round(width)}×${Math.round(height)} 像素`, 'info', 500);
+        if (!isInBounds) {
+          // 鼠标移出太远，使用边界坐标
+          const constrainedMouseX = Math.max(bounds.left, Math.min(bounds.left + bounds.width, mouseX));
+          const constrainedMouseY = Math.max(bounds.top, Math.min(bounds.top + bounds.height, mouseY));
+          
+          const width = Math.abs(constrainedMouseX - startX_container);
+          const height = Math.abs(constrainedMouseY - startY_container);
+          
+          const newLeft = Math.min(startX_container, constrainedMouseX);
+          const newTop = Math.min(startY_container, constrainedMouseY);
+          
+          selectionBox.style.left = newLeft + 'px';
+          selectionBox.style.top = newTop + 'px';
+          selectionBox.style.width = width + 'px';
+          selectionBox.style.height = height + 'px';
+          
+          if (width >= 5 && height >= 5) {
+            showSelectionFeedback(`创建中: ${Math.round(width)}×${Math.round(height)} 像素`, 'info', 500);
+          }
+        } else {
+          // 正常绘制逻辑
+          const width = Math.abs(mouseX - startX_container);
+          const height = Math.abs(mouseY - startY_container);
+          
+          const newLeft = Math.min(startX_container, mouseX);
+          const newTop = Math.min(startY_container, mouseY);
+          
+          // 限制选择框在缩略图边界内
+          const constrainedLeft = Math.max(bounds.left, Math.min(bounds.left + bounds.width, newLeft));
+          const constrainedTop = Math.max(bounds.top, Math.min(bounds.top + bounds.height, newTop));
+          const constrainedRight = Math.max(bounds.left, Math.min(bounds.left + bounds.width, newLeft + width));
+          const constrainedBottom = Math.max(bounds.top, Math.min(bounds.top + bounds.height, newTop + height));
+          
+          const constrainedWidth = constrainedRight - constrainedLeft;
+          const constrainedHeight = constrainedBottom - constrainedTop;
+          
+          selectionBox.style.left = constrainedLeft + 'px';
+          selectionBox.style.top = constrainedTop + 'px';
+          selectionBox.style.width = Math.max(0, constrainedWidth) + 'px';
+          selectionBox.style.height = Math.max(0, constrainedHeight) + 'px';
+          
+          // 实时显示选择信息
+          if (constrainedWidth >= 5 && constrainedHeight >= 5) {
+            showSelectionFeedback(`创建中: ${Math.round(constrainedWidth)}×${Math.round(constrainedHeight)} 像素`, 'info', 500);
+          }
         }
       } else if (isDragging) {
         // 拖拽移动选择框
@@ -665,6 +742,8 @@ document.addEventListener('DOMContentLoaded', () => {
       isPanning = false;
       thumbnailContainer.style.cursor = '';
       showSelectionFeedback('平移完成', 'info', 1000);
+      // 平移结束后更新选择框显示
+      updateSelectionDisplay();
     } else if (drawing) {
       drawing = false;
       finalizeSelection();
@@ -845,6 +924,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function finalizeSelection() {
+    console.log('finalizeSelection called, current states:', { drawing, isDragging, isResizing, isPanning });
+    
     const bounds = getThumbnailBounds();
     if (!bounds) {
       return;
@@ -855,12 +936,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectionWidth = parseFloat(selectionBox.style.width) || 0;
     const selectionHeight = parseFloat(selectionBox.style.height) || 0;
 
+    console.log('Selection coordinates:', { selectionLeft, selectionTop, selectionWidth, selectionHeight });
+    console.log('Bounds:', bounds);
+
     // 降低最小尺寸要求，支持更小范围的选择
     const minSize = 5; // 从20px降低到5px
     if (selectionWidth < minSize || selectionHeight < minSize) {
       selectionBox.style.display = 'none';
       analyzeSelectionButton.disabled = true;
       currentSelectionRatios = null;
+      showSelectionFeedback('选择区域太小，请选择至少5x5像素的区域', 'warning');
       return;
     }
 
@@ -912,8 +997,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 显示选择信息
     const areaPercent = (currentSelectionRatios.width * currentSelectionRatios.height * 100).toFixed(1);
+    showSelectionFeedback(`已选择 ${Math.round(selectionWidth)}×${Math.round(selectionHeight)} 像素区域 (${areaPercent}% 页面)`, 'success');
     
-    console.log("Selection ratios:", currentSelectionRatios);
+    console.log("Final selection ratios:", currentSelectionRatios);
     analyzeSelectionButton.disabled = false;
   }
 
@@ -943,8 +1029,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('zoom-reset').addEventListener('click', () => {
     resetTransform();
   });
-
-
 
   function performAnalysis(isSelection) {
     // 重置流式状态

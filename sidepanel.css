@@ -40,6 +40,7 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 150px; /* 避免在图片加载前高度为0 */
+  user-select: none; /* 防止文本选择干扰 */
 }
 
 .overlay {
