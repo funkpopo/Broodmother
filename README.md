@@ -3,7 +3,7 @@
 Chrome浏览器扩展，使用AI技术实现右键翻译选中的文本。
 
 ## 截图示例
-![image](https://img.picgo.net/2025/06/05/1ccd7ce32b6df39a6.gif)
+![1](https://img.picgo.net/2025/06/05/1ccd7ce32b6df39a6.gif)
 
 ## 核心功能
 - 右键菜单翻译选中文本
