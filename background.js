@@ -169,22 +169,264 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (dataUrl) {
         sendResponse({ dataUrl: dataUrl });
       } else {
-        // Fallback or specific error if dataUrl is null but no chrome.runtime.lastError
         console.error("截图成功但未返回dataUrl");
         sendResponse({ error: "截图成功但未返回dataUrl" });
       }
     });
     return true; // Indicates that the response is sent asynchronously
+  } else if (request.action === "extractAndAnalyze") {
+    // 处理文字提取和AI分析请求
+    handleExtractAndAnalyze(request, sender, sendResponse);
+    return true; // 异步响应
   }
   
-  // 返回true表示sendResponse可能会异步调用 (如果其他分支也需要异步)
-  // 如果所有分支都是同步的，或者只有这个是异步的，则这里的 return true 对于这个分支是关键的。
-  // 对于同步分支，可以不返回或返回false。
-  // 保持 return true 以确保异步操作正常工作。
   return true;
 });
 
+// 处理文字提取和AI分析
+async function handleExtractAndAnalyze(request, sender, sendResponse) {
+  try {
+    // 获取当前活动标签页ID
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs || tabs.length === 0 || !tabs[0].id) {
+      sendResponse({ success: false, error: "无法获取当前标签页" });
+      return;
+    }
+    
+    const tabId = tabs[0].id;
+    
+    // 检查并确保内容脚本已加载
+    try {
+      await ensureContentScriptLoaded(tabId);
+    } catch (error) {
+      console.error("内容脚本加载失败:", error);
+      sendResponse({ 
+        success: false, 
+        error: "内容脚本加载失败，请刷新页面后重试" 
+      });
+      return;
+    }
+    
+    // 向内容脚本发送文字提取请求
+    let extractMessage;
+    if (request.isSelection && request.selectionRatios) {
+      // 提取选中区域文字
+      extractMessage = {
+        action: "extractTextFromSelection",
+        selectionRatios: request.selectionRatios
+      };
+    } else {
+      // 提取整页文字
+      extractMessage = {
+        action: "extractTextFromPage"
+      };
+    }
+    
+    chrome.tabs.sendMessage(tabId, extractMessage, async (extractResponse) => {
+      if (chrome.runtime.lastError) {
+        console.error("文字提取失败:", chrome.runtime.lastError.message);
+        sendResponse({ 
+          success: false, 
+          error: "文字提取失败: " + chrome.runtime.lastError.message 
+        });
+        return;
+      }
+      
+      if (!extractResponse || !extractResponse.success) {
+        sendResponse({ 
+          success: false, 
+          error: "文字提取失败: " + (extractResponse ? extractResponse.error : "未知错误")
+        });
+        return;
+      }
+      
+      const extractedText = extractResponse.text;
+      if (!extractedText || extractedText.trim() === "") {
+        sendResponse({ 
+          success: false, 
+          error: "未提取到文字内容"
+        });
+        return;
+      }
+      
+      // 调用AI分析
+      await performAIAnalysis(extractedText, request.isSelection, sendResponse);
+    });
+    
+  } catch (error) {
+    console.error("处理提取和分析请求时出错:", error);
+    sendResponse({ 
+      success: false, 
+      error: "处理请求时出错: " + error.message 
+    });
+  }
+}
 
+// 确保内容脚本已加载
+async function ensureContentScriptLoaded(tabId) {
+  try {
+    // 尝试发送ping消息检查内容脚本是否响应
+    await new Promise((resolve, reject) => {
+      chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
+        if (chrome.runtime.lastError) {
+          // 内容脚本未加载，尝试注入
+          inject_content_script(tabId)
+            .then(resolve)
+            .catch(reject);
+        } else {
+          resolve();
+        }
+      });
+    });
+  } catch (error) {
+    throw new Error("无法加载内容脚本: " + error.message);
+  }
+}
+
+// 注入内容脚本
+async function inject_content_script(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['content_script.js']
+    });
+    
+    // 等待内容脚本初始化
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+  } catch (error) {
+    throw new Error("脚本注入失败: " + error.message);
+  }
+}
+
+// 执行AI分析
+async function performAIAnalysis(text, isSelection, sendResponse) {
+  // 获取当前配置
+  chrome.storage.sync.get(['configs', 'currentConfigId'], async (settings) => {
+    if (chrome.runtime.lastError) {
+      sendResponse({ 
+        success: false, 
+        error: '获取配置失败: ' + chrome.runtime.lastError.message 
+      });
+      return;
+    }
+
+    const configs = settings.configs || [];
+    const currentConfigId = settings.currentConfigId;
+    
+    // 检查是否有配置
+    if (!configs || configs.length === 0) {
+      sendResponse({ 
+        success: false, 
+        error: '未配置AI API信息，请在扩展弹出窗口中设置' 
+      });
+      return;
+    }
+    
+    // 获取当前配置
+    const currentConfig = configs.find(config => config.id === currentConfigId);
+    if (!currentConfig) {
+      sendResponse({ 
+        success: false, 
+        error: '当前配置无效，请在扩展弹出窗口中重新设置' 
+      });
+      return;
+    }
+    
+    const { apiUrl, apiKey, modelName, name } = currentConfig;
+
+    if (!apiUrl || !apiKey || !modelName) {
+      sendResponse({ 
+        success: false, 
+        error: '配置信息不完整，请检查API URL、API Key和模型名称' 
+      });
+      return;
+    }
+
+    // 构建分析提示词
+    const analysisType = isSelection ? "选中区域" : "整个页面";
+    const prompt = `请分析以下来自网页${analysisType}的文字内容，并提供有用的见解、总结或建议：
+
+${text}
+
+请提供：
+1. 内容概要
+2. 主要观点或信息
+3. 可能的应用建议或思考角度`;
+
+    // 构建请求体
+    const requestBody = {
+      model: modelName,
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    };
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + apiKey
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        let errorDetails = `状态码: ${response.status}`;
+        try {
+          const errorBody = await response.text();
+          errorDetails += `, 响应: ${errorBody}`;
+        } catch (e) {
+          errorDetails += ', 无法获取详细错误信息';
+        }
+        sendResponse({ 
+          success: false, 
+          error: 'AI API请求失败: ' + errorDetails 
+        });
+        return;
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        sendResponse({ 
+          success: false, 
+          error: '无法解析AI API响应: ' + e.message 
+        });
+        return;
+      }
+      
+      // 解析API响应
+      let analysisResult = '';
+      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
+        analysisResult = data.choices[0].message.content.trim();
+      } else {
+        sendResponse({ 
+          success: false, 
+          error: '未在API响应中找到分析结果，响应格式可能不兼容' 
+        });
+        return;
+      }
+      
+      sendResponse({ 
+        success: true, 
+        result: analysisResult 
+      });
+
+    } catch (error) {
+      console.error('AI API调用失败:', error);
+      sendResponse({ 
+        success: false, 
+        error: '网络错误或API端点不可访问: ' + error.message 
+      });
+    }
+  });
+}
 
 // 添加右键菜单动态更新，根据当前配置显示不同菜单项
 chrome.storage.onChanged.addListener((changes, area) => {

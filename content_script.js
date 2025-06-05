@@ -165,15 +165,15 @@ function checkOverlap(rectA, rectB) {
   return overlap;
 }
 
-function extractTextFromRegion(selectionRectRatios) {
+function extractTextFromRegion(selectionRatios) {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
 
   const selectionAbs = {
-    x: selectionRectRatios.x_ratio * viewportWidth,
-    y: selectionRectRatios.y_ratio * viewportHeight,
-    width: selectionRectRatios.width_ratio * viewportWidth,
-    height: selectionRectRatios.height_ratio * viewportHeight
+    x: selectionRatios.x * viewportWidth,
+    y: selectionRatios.y * viewportHeight,
+    width: selectionRatios.width * viewportWidth,
+    height: selectionRatios.height * viewportHeight
   };
   selectionAbs.right = selectionAbs.x + selectionAbs.width;
   selectionAbs.bottom = selectionAbs.y + selectionAbs.height;
@@ -182,19 +182,17 @@ function extractTextFromRegion(selectionRectRatios) {
   getVisibleTextNodes(document.body, visibleTextNodes);
   
   const selectedTexts = [];
-  const processedElements = new Set(); // To avoid double counting from parent/child elements
+  const processedElements = new Set();
 
   for (const node of visibleTextNodes) {
     let element = node.parentNode;
     if (element && !processedElements.has(element)) {
         const range = document.createRange();
-        range.selectNodeContents(node); // Get bounding box of the text node itself
+        range.selectNodeContents(node);
         const elementRect = range.getBoundingClientRect();
 
         if (elementRect.width > 0 && elementRect.height > 0 && checkOverlap(selectionAbs, elementRect)) {
             selectedTexts.push(node.textContent.trim());
-            // Add all parent elements up to body to avoid re-processing children of an already included parent
-            // This is a simplification; ideally, we only add the element that was deemed overlapping.
             let currentElement = element;
             while(currentElement && currentElement !== document.body) {
                 processedElements.add(currentElement);
@@ -209,10 +207,14 @@ function extractTextFromRegion(selectionRectRatios) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) {
     console.warn("Message received from unknown sender:", sender);
-    return false; // Ignore messages not from our extension
+    return false;
   }
 
-  if (request.action === "displayTranslation") {
+  if (request.action === "ping") {
+    // 响应ping消息，确认内容脚本已加载
+    sendResponse({ success: true, message: "pong" });
+    return true;
+  } else if (request.action === "displayTranslation") {
     if (chrome.runtime.lastError) {
       showTranslationOverlay('接收消息时出错: ' + chrome.runtime.lastError.message, null, true);
       return;
@@ -228,7 +230,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else {
       showTranslationOverlay('收到意外或空的翻译响应', null, true);
     }
+  } else if (request.action === "extractTextFromSelection") {
+    // 新的选择区域文字提取
+    if (request.selectionRatios) {
+      try {
+        const text = extractTextFromRegion(request.selectionRatios);
+        sendResponse({ success: true, text: text });
+      } catch (e) {
+        console.error("Error extracting text from selection:", e);
+        sendResponse({ success: false, error: "提取选中区域文字失败: " + e.message });
+      }
+    } else {
+      sendResponse({ success: false, error: "未提供选择区域坐标" });
+    }
+    return true;
+  } else if (request.action === "extractTextFromPage") {
+    // 新的整页文字提取
+    try {
+      const text = extractAllText();
+      sendResponse({ success: true, text: text });
+    } catch (e) {
+      console.error("Error extracting page text:", e);
+      sendResponse({ success: false, error: "提取页面文字失败: " + e.message });
+    }
+    return true;
   } else if (request.action === "getTextSelection") {
+    // 保持向后兼容的旧API
     if (request.coordinates) {
       try {
         const text = extractTextFromRegion(request.coordinates);
@@ -240,8 +267,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else {
       sendResponse({ error: "Coordinates not provided for selection" });
     }
-    return true; // Indicate asynchronous response
+    return true;
   } else if (request.action === "getTextAll") {
+    // 保持向后兼容的旧API
     try {
       const text = extractAllText();
       sendResponse({ text: text });
@@ -249,16 +277,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.error("Error extracting all text:", e);
       sendResponse({ error: "Error extracting all text: " + e.message });
     }
-    return true; // Indicate asynchronous response
+    return true;
   }
-  // Make sure to return true if any branch might respond asynchronously.
-  // The original code for displayTranslation didn't return true, implying it was sync or didn't always sendResponse.
-  // For the new branches, true is necessary.
-  // Keep an eye on whether displayTranslation needs to be async or if this broad `return true` is problematic.
-  // For now, a single `return true` at the end of new handlers should be fine.
-  // However, the structure of addListener expects a true return if *any* path is async.
-  // So, if displayTranslation is purely sync and doesn't call sendResponse, this could be an issue.
-  // Given displayTranslation *does* show UI, it likely completes its work synchronously within its call.
-  // Let's assume existing displayTranslation is okay without returning true.
-  // Only the new paths will explicitly return true.
 });

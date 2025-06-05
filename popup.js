@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('saveConfig called'); // 调试信息
     
     if (!configNameInput || !apiUrlInput || !apiKeyInput || !modelNameInput) {
-      showStatus('表单元素未找到，请刷新页面重试', true);
+      showStatus('表单元素未找到，请重新打开设置页面', true);
       console.error('Form inputs not found!');
       return;
     }

@@ -7,9 +7,30 @@
 </head>
 <body>
   <div class="container">
-    <div id="thumbnail-container">
-      <img id="thumbnail-image" alt="Page Thumbnail">
-      <div id="selection-box"></div>
+    <div class="thumbnail-section">
+      <div class="thumbnail-header">
+        <h3>页面预览</h3>
+      </div>
+      <div id="thumbnail-container">
+        <img id="thumbnail-image" alt="Page Thumbnail">
+        <div id="selection-box">
+          <!-- 四角调整手柄 -->
+          <div class="resize-handle handle-nw"></div>
+          <div class="resize-handle handle-ne"></div>
+          <div class="resize-handle handle-sw"></div>
+          <div class="resize-handle handle-se"></div>
+          <!-- 四边调整手柄 -->
+          <div class="resize-handle handle-n"></div>
+          <div class="resize-handle handle-s"></div>
+          <div class="resize-handle handle-w"></div>
+          <div class="resize-handle handle-e"></div>
+        </div>
+        <div id="thumbnail-overlay" class="overlay hidden">
+          <div class="overlay-content">
+            <p>正在获取页面截图...</p>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="controls">
       <button id="analyze-selection">分析选中范围</button>

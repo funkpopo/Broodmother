@@ -9,7 +9,8 @@
     "scripting",
     "storage",
     "contextMenus",
-    "sidePanel"
+    "sidePanel",
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html"
