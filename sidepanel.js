@@ -1,3 +1,10 @@
+// HTML转义函数，防止XSS攻击
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const thumbnailContainer = document.getElementById('thumbnail-container');
   const thumbnailImage = document.getElementById('thumbnail-image');
@@ -41,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
       startAutoRefresh();
     } else {
       console.error("Could not get active tab ID for sidepanel.");
-      analysisResultDiv.textContent = "无法获取当前标签页信息。";
+      analysisResultDiv.innerHTML = `<div class="error-message">无法获取当前标签页信息。</div>`;
       analyzePageButton.disabled = true;
       analyzeSelectionButton.disabled = true; 
     }
@@ -483,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function performAnalysis(isSelection) {
-    analysisResultDiv.textContent = isSelection ? "正在分析选中范围..." : "正在分析整个页面...";
+    analysisResultDiv.innerHTML = `<div class="loading-message">${isSelection ? "正在分析选中范围..." : "正在分析整个页面..."}</div>`;
     
     const message = {
       action: "extractAndAnalyze",
@@ -499,14 +506,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
-        analysisResultDiv.textContent = "分析失败: " + chrome.runtime.lastError.message;
+        analysisResultDiv.innerHTML = `<div class="error-message">分析失败: ${chrome.runtime.lastError.message}</div>`;
         return;
       }
       
       if (response && response.success) {
-        analysisResultDiv.textContent = response.result || "分析完成，但没有返回结果";
+        const result = response.result || "分析完成，但没有返回结果";
+        // 使用marked库将Markdown转换为HTML
+        if (typeof marked !== 'undefined') {
+          try {
+            const htmlContent = marked.parse(result);
+            analysisResultDiv.innerHTML = htmlContent;
+          } catch (error) {
+            console.error('Markdown解析错误:', error);
+            analysisResultDiv.innerHTML = `<div class="error-message">Markdown解析失败</div><pre>${escapeHtml(result)}</pre>`;
+          }
+        } else {
+          // 如果marked库未加载，回退到纯文本显示
+          analysisResultDiv.innerHTML = `<pre>${escapeHtml(result)}</pre>`;
+        }
       } else {
-        analysisResultDiv.textContent = "分析失败: " + (response ? response.error : "未知错误");
+        analysisResultDiv.innerHTML = `<div class="error-message">分析失败: ${response ? response.error : "未知错误"}</div>`;
       }
     });
   }

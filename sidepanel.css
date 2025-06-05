@@ -163,4 +163,134 @@ body {
 #analysis-result div {
   white-space: pre-wrap; /* 保留换行和空格 */
   word-wrap: break-word;
+}
+
+/* Markdown渲染样式 */
+#analysis-result h1,
+#analysis-result h2,
+#analysis-result h3,
+#analysis-result h4,
+#analysis-result h5,
+#analysis-result h6 {
+  margin: 16px 0 8px 0;
+  padding: 0;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #24292e;
+}
+
+#analysis-result h1 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #e1e4e8;
+  padding-bottom: 8px;
+}
+
+#analysis-result h2 {
+  font-size: 1.3em;
+  border-bottom: 1px solid #e1e4e8;
+  padding-bottom: 6px;
+}
+
+#analysis-result h3 {
+  font-size: 1.1em;
+}
+
+#analysis-result h4,
+#analysis-result h5,
+#analysis-result h6 {
+  font-size: 1em;
+}
+
+#analysis-result ul,
+#analysis-result ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+#analysis-result li {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+#analysis-result ul li {
+  list-style-type: disc;
+}
+
+#analysis-result ol li {
+  list-style-type: decimal;
+}
+
+#analysis-result p {
+  margin: 8px 0;
+  line-height: 1.4;
+}
+
+#analysis-result strong {
+  font-weight: 600;
+  color: #24292e;
+}
+
+#analysis-result em {
+  font-style: italic;
+}
+
+#analysis-result code {
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  padding: 2px 4px;
+}
+
+#analysis-result pre {
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85em;
+  line-height: 1.45;
+  overflow: auto;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid #e1e4e8;
+}
+
+#analysis-result blockquote {
+  border-left: 4px solid #dfe2e5;
+  color: #6a737d;
+  margin: 0;
+  padding: 0 16px;
+}
+
+#analysis-result hr {
+  border: none;
+  border-top: 1px solid #e1e4e8;
+  height: 1px;
+  margin: 24px 0;
+}
+
+/* 状态消息样式 */
+.error-message {
+  color: #d73a49;
+  background-color: #ffeef0;
+  border: 1px solid #fdaeb7;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 0.9em;
+}
+
+.loading-message {
+  color: #0366d6;
+  background-color: #f1f8ff;
+  border: 1px solid #c8e1ff;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+/* 针对emoji的优化 */
+#analysis-result h2:before {
+  margin-right: 8px;
 } 

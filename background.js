@@ -345,14 +345,32 @@ async function performAIAnalysis(text, isSelection, sendResponse) {
 
     // 构建分析提示词
     const analysisType = isSelection ? "选中区域" : "整个页面";
-    const prompt = `请分析以下来自网页${analysisType}的文字内容，并提供有用的见解、总结或建议：
+    const prompt = `请分析以下来自网页${analysisType}的文字内容，并以Markdown格式提供有用的见解、总结或建议：
 
 ${text}
 
-请提供：
-1. 内容概要
-2. 主要观点或信息
-3. 可能的应用建议或思考角度`;
+请按以下结构提供分析结果（使用Markdown格式）：
+
+## 📝 内容概要
+（简明扼要地总结主要内容）
+
+## 🔍 主要观点
+- 关键信息点1
+- 关键信息点2
+- ...
+
+## 💡 见解与建议
+### 应用建议
+- 具体建议1
+- 具体建议2
+
+### 思考角度
+- 可以从哪些角度进一步思考
+
+## 📋 总结
+（一句话总结核心价值）
+
+请确保使用标准Markdown语法，包括标题(##)、列表(-)、粗体(**text**)等格式。`;
 
     // 构建请求体
     const requestBody = {
