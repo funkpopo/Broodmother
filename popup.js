@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOMContentLoaded event fired'); // 调试信息
   
+  // 初始化国际化支持
+  initializeI18n();
+  
   // DOM元素
   const configNameInput = document.getElementById('configName');
   const apiUrlInput = document.getElementById('apiUrl');
@@ -87,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadConfigs() {
     chrome.storage.sync.get(['configs', 'currentConfigId', 'currentTheme', 'defaultLanguage'], (result) => {
       if (chrome.runtime.lastError) {
-        showStatus('加载配置失败: ' + chrome.runtime.lastError.message, true);
+        showStatus('load_config_failed: ' + chrome.runtime.lastError.message, true);
         return;
       }
       
@@ -122,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function saveConfigs() {
     chrome.storage.sync.set({ configs, currentConfigId, currentTheme, defaultLanguage }, () => {
       if (chrome.runtime.lastError) {
-        showStatus('保存配置失败: ' + chrome.runtime.lastError.message, true);
+        showStatus('save_config_failed: ' + chrome.runtime.lastError.message, true);
       }
     });
   }
@@ -145,22 +148,22 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Form values:', { name, apiUrl: apiUrl ? 'set' : 'empty', apiKey: apiKey ? 'set' : 'empty', modelName });
     
     if (!name) {
-      showStatus('请输入配置名称', true);
+      showStatus('enter_config_name', true);
       return;
     }
     
     if (!apiUrl) {
-      showStatus('请输入API URL', true);
+      showStatus('enter_api_url', true);
       return;
     }
     
     if (!apiKey) {
-      showStatus('请输入API Key', true);
+      showStatus('enter_api_key', true);
       return;
     }
     
     if (!modelName) {
-      showStatus('请输入模型名称', true);
+      showStatus('enter_model_name', true);
       return;
     }
     
@@ -175,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
           apiKey,
           modelName
         };
-        showStatus('配置已更新');
+        showStatus('config_updated');
       }
     } else {
       // 添加新配置
@@ -193,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentConfigId = newConfig.id;
       }
       
-      showStatus('配置已添加');
+      showStatus('config_added');
     }
     
     // 保存到存储
@@ -655,6 +658,97 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Default language select not found!');
     }
   }
+  
+  // 初始化国际化
+  function initializeI18n() {
+    // 注册语言包
+    if (typeof zh !== 'undefined') {
+      i18n.registerLanguage('zh', zh);
+    }
+    if (typeof en !== 'undefined') {
+      i18n.registerLanguage('en', en);
+    }
+    
+    // 初始化i18n管理器
+    i18n.init();
+    
+    // 添加语言切换按钮事件
+    const languageToggle = document.getElementById('languageToggle');
+    const languageLabel = document.getElementById('languageLabel');
+    
+    if (languageToggle && languageLabel) {
+      languageToggle.addEventListener('click', () => {
+        i18n.toggleLanguage();
+        updateLanguageLabel();
+        showStatus(getText('language_switched'));
+      });
+      
+      // 初始化语言标签
+      updateLanguageLabel();
+    }
+    
+    // 监听语言变化事件
+    i18n.addLanguageChangeListener((newLang) => {
+      updateLanguageLabel();
+      updateAllTexts();
+    });
+    
+    // 监听文本更新事件
+    window.addEventListener('i18nTextUpdated', () => {
+      updateAllTexts();
+    });
+  }
+  
+  // 更新语言切换按钮标签
+  function updateLanguageLabel() {
+    const languageLabel = document.getElementById('languageLabel');
+    if (languageLabel) {
+      const currentLang = i18n.getCurrentLanguage();
+      languageLabel.textContent = currentLang === 'zh' ? '中' : 'EN';
+    }
+  }
+  
+  // 更新所有需要特殊处理的文本
+  function updateAllTexts() {
+    // 更新状态消息中的硬编码文本
+    const currentLang = i18n.getCurrentLanguage();
+    
+    // 更新 placeholder 文本
+    const configNameInput = document.getElementById('configName');
+    const apiKeyInput = document.getElementById('apiKey');
+    const modelNameInput = document.getElementById('modelName');
+    
+    if (configNameInput) {
+      configNameInput.placeholder = currentLang === 'zh' ? '输入配置名称' : 'Enter configuration name';
+    }
+    if (apiKeyInput) {
+      apiKeyInput.placeholder = currentLang === 'zh' ? '输入API密钥' : 'Enter API key';
+    }
+    if (modelNameInput) {
+      modelNameInput.placeholder = currentLang === 'zh' ? '例如：gpt-3.5-turbo' : 'e.g.: gpt-3.5-turbo';
+    }
+    
+    // 重新渲染配置列表（如果存在）
+    if (configs.length > 0) {
+      renderConfigList();
+    }
+  }
+  
+  // 重写showStatus函数以支持多语言
+  const originalShowStatus = showStatus;
+  showStatus = function(messageKey, isError = false) {
+    let message;
+    // 如果传入的是翻译键，则获取翻译文本
+    if (typeof messageKey === 'string' && i18n && i18n.languages[i18n.getCurrentLanguage()]) {
+      const translatedText = getText(messageKey);
+      // 如果找到翻译则使用翻译，否则使用原文本
+      message = translatedText !== messageKey ? translatedText : messageKey;
+    } else {
+      message = messageKey;
+    }
+    
+    originalShowStatus(message, isError);
+  };
   
   // 初始化
   init();

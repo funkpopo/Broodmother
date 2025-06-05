@@ -196,6 +196,47 @@
       background: linear-gradient(to right, #f8f9fa 50%, #343a40 50%);
     }
     
+    /* 语言切换器样式 */
+    .language-selector {
+      display: flex;
+      align-items: center;
+    }
+    
+    .language-btn {
+      background: none;
+      border: 1px solid var(--light-border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+      min-width: 30px;
+      height: 24px;
+    }
+    
+    .light-theme .language-btn {
+      background-color: var(--light-input-bg);
+      border-color: var(--light-border);
+      color: var(--light-text);
+    }
+    
+    .dark-theme .language-btn {
+      background-color: var(--dark-input-bg);
+      border-color: var(--dark-border);
+      color: var(--dark-text);
+    }
+    
+    .language-btn:hover {
+      background-color: var(--light-btn-primary);
+      color: white;
+    }
+    
+    .dark-theme .language-btn:hover {
+      background-color: var(--dark-btn-primary);
+      color: white;
+    }
+    
     /* Tab切换样式 */
     .tab-container {
       margin-bottom: 15px;
@@ -288,20 +329,29 @@
   <div class="container">
     <!-- 顶部菜单栏 -->
     <div class="top-bar">
-      <h2>Broodmother</h2>
-      <div class="theme-selector">
-        <div class="theme-option light-option active" data-theme="light" title="亮色主题"></div>
-        <div class="theme-option dark-option" data-theme="dark" title="暗色主题"></div>
-        <div class="theme-option auto-option" data-theme="auto" title="跟随浏览器"></div>
+      <h2 data-i18n="extension_title">Broodmother</h2>
+      <div style="display: flex; gap: 15px; align-items: center;">
+        <!-- 语言切换器 -->
+        <div class="language-selector">
+          <button id="languageToggle" class="language-btn" title="Switch Language">
+            <span id="languageLabel">中</span>
+          </button>
+        </div>
+        <!-- 主题选择器 -->
+        <div class="theme-selector">
+          <div class="theme-option light-option active" data-theme="light" data-i18n-title="light_theme" title="亮色主题"></div>
+          <div class="theme-option dark-option" data-theme="dark" data-i18n-title="dark_theme" title="暗色主题"></div>
+          <div class="theme-option auto-option" data-theme="auto" data-i18n-title="auto_theme" title="跟随浏览器"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Tab切换 -->
-    <div class="tab-container">
-      <div class="tabs">
-        <div class="tab active" data-tab="configs">配置管理</div>
-        <div class="tab" data-tab="settings">设置</div>
-      </div>
+          <!-- Tab切换 -->
+      <div class="tab-container">
+        <div class="tabs">
+          <div class="tab active" data-tab="configs" data-i18n="config_management">配置管理</div>
+          <div class="tab" data-tab="settings" data-i18n="settings">设置</div>
+        </div>
       
       <!-- 配置管理Tab -->
       <div class="tab-content active" id="configs-tab">
@@ -309,48 +359,48 @@
           <!-- 配置项将由JS动态生成 -->
         </div>
         
-        <button id="addConfigBtn" class="btn-primary">添加新配置</button>
+        <button id="addConfigBtn" class="btn-primary" data-i18n="add_config">添加新配置</button>
         
         <div class="form-group" id="configForm" style="margin-top: 15px;">
           <div class="form-group">
-            <label for="configName">配置名称:</label>
-            <input type="text" id="configName" placeholder="输入配置名称">
+            <label for="configName" data-i18n="config_name">配置名称:</label>
+            <input type="text" id="configName" data-i18n-placeholder="config_name" placeholder="输入配置名称">
           </div>
           <div class="form-group">
-            <label for="apiUrl">API URL:</label>
+            <label for="apiUrl" data-i18n="api_url">API URL:</label>
             <input type="text" id="apiUrl" placeholder="例如：https://api.openai.com/v1/chat/completions">
           </div>
           <div class="form-group">
-            <label for="apiKey">API Key:</label>
-            <input type="password" id="apiKey" placeholder="输入API密钥">
+            <label for="apiKey" data-i18n="api_key">API Key:</label>
+            <input type="password" id="apiKey" data-i18n-placeholder="api_key" placeholder="输入API密钥">
           </div>
           <div class="form-group">
-            <label for="modelName">模型名称:</label>
-            <input type="text" id="modelName" placeholder="例如：gpt-3.5-turbo">
+            <label for="modelName" data-i18n="model_name">模型名称:</label>
+            <input type="text" id="modelName" data-i18n-placeholder="model_name" placeholder="例如：gpt-3.5-turbo">
           </div>
-          <button id="saveConfigBtn" class="btn-primary">保存配置</button>
+          <button id="saveConfigBtn" class="btn-primary" data-i18n="save_config">保存配置</button>
         </div>
       </div>
       
-      <!-- 设置Tab -->
-      <div class="tab-content" id="settings-tab">
-        <div class="action-buttons">
-          <button id="exportBtn" class="btn-secondary">导出所有配置</button>
-          <button id="importBtn" class="btn-secondary">导入配置</button>
+              <!-- 设置Tab -->
+        <div class="tab-content" id="settings-tab">
+          <div class="action-buttons">
+            <button id="exportBtn" class="btn-secondary" data-i18n="export_configs">导出所有配置</button>
+            <button id="importBtn" class="btn-secondary" data-i18n="import_configs">导入配置</button>
+          </div>
+          <div class="form-group" style="margin-top: 15px;">
+            <label for="defaultLang" data-i18n="default_lang">默认翻译语言:</label>
+            <select id="defaultLang">
+              <option value="Chinese">中文</option>
+              <option value="English">英文</option>
+              <option value="Japanese">日文</option>
+              <option value="Korean">韩文</option>
+              <option value="French">法文</option>
+              <option value="German">德文</option>
+              <option value="Spanish">西班牙文</option>
+            </select>
+          </div>
         </div>
-        <div class="form-group" style="margin-top: 15px;">
-          <label for="defaultLang">默认翻译语言:</label>
-          <select id="defaultLang">
-            <option value="Chinese">中文</option>
-            <option value="English">英文</option>
-            <option value="Japanese">日文</option>
-            <option value="Korean">韩文</option>
-            <option value="French">法文</option>
-            <option value="German">德文</option>
-            <option value="Spanish">西班牙文</option>
-          </select>
-        </div>
-      </div>
     </div>
     
     <div id="statusArea"></div>
@@ -360,15 +410,15 @@
   <div class="modal" id="deleteModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>确认删除</h3>
+        <h3 data-i18n="delete_config_title">确认删除</h3>
         <span class="modal-close">&times;</span>
       </div>
       <div class="modal-body">
-        确定要删除此配置吗？此操作无法撤销。
+        <p data-i18n="delete_config_message">确定要删除此配置吗？此操作无法撤销。</p>
       </div>
       <div class="modal-footer">
-        <button class="btn-secondary" id="cancelDeleteBtn">取消</button>
-        <button class="btn-danger" id="confirmDeleteBtn">删除</button>
+        <button class="btn-secondary" id="cancelDeleteBtn" data-i18n="cancel">取消</button>
+        <button class="btn-danger" id="confirmDeleteBtn" data-i18n="delete">删除</button>
       </div>
     </div>
   </div>
@@ -377,22 +427,26 @@
   <div class="modal" id="importModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>导入配置</h3>
+        <h3 data-i18n="import_config_title">导入配置</h3>
         <span class="modal-close">&times;</span>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label for="importText">粘贴导出的配置数据:</label>
-          <textarea id="importText" rows="5" style="width:100%;"></textarea>
+          <label for="importText" data-i18n="import_config_message">粘贴导出的配置数据:</label>
+          <textarea id="importText" rows="5" style="width:100%;" data-i18n-placeholder="import_config_placeholder" placeholder="在此粘贴配置数据..."></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-secondary" id="cancelImportBtn">取消</button>
-        <button class="btn-primary" id="confirmImportBtn">导入</button>
+        <button class="btn-secondary" id="cancelImportBtn" data-i18n="cancel">取消</button>
+        <button class="btn-primary" id="confirmImportBtn" data-i18n="import">导入</button>
       </div>
     </div>
   </div>
 
+  <!-- 引入语言包和国际化管理器 -->
+  <script src="locales/zh.js"></script>
+  <script src="locales/en.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

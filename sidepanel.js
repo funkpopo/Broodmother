@@ -42,6 +42,9 @@ function showSelectionFeedback(message, type = 'info', duration = 3000) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 初始化国际化支持
+  initializeI18n();
+  
   const thumbnailContainer = document.getElementById('thumbnail-container');
   const thumbnailImage = document.getElementById('thumbnail-image');
   const selectionBox = document.getElementById('selection-box');
@@ -130,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
       startAutoRefresh();
     } else {
       console.error("Could not get active tab ID for sidepanel.");
-      analysisResultDiv.innerHTML = `<div class="error-message">无法获取当前标签页信息。</div>`;
+      analysisResultDiv.innerHTML = `<div class="error-message">${getText('cannot_get_tab_info')}</div>`;
       analyzePageButton.disabled = true;
       analyzeSelectionButton.disabled = true; 
     }
@@ -1036,12 +1039,12 @@ document.addEventListener('DOMContentLoaded', () => {
     streamBuffer = '';
     
     // 创建优化的流式界面
-    const loadingMessage = isSelection ? "正在分析选中范围..." : "正在分析整个页面...";
+    const loadingMessage = isSelection ? getText('analysis_in_progress') + " (" + getText('analyze_selection') + ")" : getText('analysis_in_progress') + " (" + getText('analyze_page') + ")";
     analysisResultDiv.innerHTML = `
       <div class="streaming-container">
         <div class="streaming-header">
           <div class="loading-message">${loadingMessage}</div>
-          <button id="cancel-stream" class="cancel-button" style="display: none;" title="取消分析">
+          <button id="cancel-stream" class="cancel-button" style="display: none;" title="${getText('stop_analysis')}">
             <span class="cancel-icon">✕</span>
           </button>
         </div>
@@ -1066,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
-        analysisResultDiv.innerHTML = `<div class="error-message">分析失败: ${chrome.runtime.lastError.message}</div>`;
+        analysisResultDiv.innerHTML = `<div class="error-message">${getText('analysis_failed')}: ${chrome.runtime.lastError.message}</div>`;
         return;
       }
       
@@ -1225,5 +1228,73 @@ document.addEventListener('DOMContentLoaded', () => {
       // 如果marked库未加载，回退到纯文本显示
       target.innerHTML = `<pre>${escapeHtml(content)}</pre>`;
     }
+  }
+  
+  // 初始化国际化
+  function initializeI18n() {
+    // 注册语言包
+    if (typeof zh !== 'undefined') {
+      i18n.registerLanguage('zh', zh);
+    }
+    if (typeof en !== 'undefined') {
+      i18n.registerLanguage('en', en);
+    }
+    
+    // 初始化i18n管理器
+    i18n.init();
+    
+    // 添加语言切换按钮事件
+    const languageToggleSide = document.getElementById('languageToggleSide');
+    const languageLabelSide = document.getElementById('languageLabelSide');
+    
+    if (languageToggleSide && languageLabelSide) {
+      languageToggleSide.addEventListener('click', () => {
+        i18n.toggleLanguage();
+        updateLanguageLabelSide();
+        showSelectionFeedback(getText('language_switched'), 'success');
+      });
+      
+      // 初始化语言标签
+      updateLanguageLabelSide();
+    }
+    
+    // 监听语言变化事件
+    i18n.addLanguageChangeListener((newLang) => {
+      updateLanguageLabelSide();
+      updateSidepanelTexts();
+    });
+    
+    // 监听文本更新事件
+    window.addEventListener('i18nTextUpdated', () => {
+      updateSidepanelTexts();
+    });
+  }
+  
+  // 更新侧边栏语言切换按钮标签
+  function updateLanguageLabelSide() {
+    const languageLabelSide = document.getElementById('languageLabelSide');
+    if (languageLabelSide) {
+      const currentLang = i18n.getCurrentLanguage();
+      languageLabelSide.textContent = currentLang === 'zh' ? '中' : 'EN';
+    }
+  }
+  
+  // 更新侧边栏中需要特殊处理的文本
+  function updateSidepanelTexts() {
+    const currentLang = i18n.getCurrentLanguage();
+    
+    // 更新分析按钮状态
+    if (analyzeSelectionButton) {
+      analyzeSelectionButton.disabled = !currentSelectionRatios;
+    }
+    
+    // 如果有错误消息在显示，需要更新
+    const errorMessages = document.querySelectorAll('.error-message');
+    errorMessages.forEach(msg => {
+      const text = msg.textContent;
+      if (text.includes('无法获取当前标签页信息') || text.includes('Cannot get current tab information')) {
+        msg.textContent = getText('cannot_get_tab_info');
+      }
+    });
   }
 });

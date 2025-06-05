@@ -31,6 +31,27 @@ body {
   color: #555;
 }
 
+/* 语言切换按钮样式 */
+.language-btn {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  min-width: 30px;
+  height: 24px;
+  color: #333;
+}
+
+.language-btn:hover {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
 #thumbnail-container {
   position: relative;
   border: 1px solid #ccc;
