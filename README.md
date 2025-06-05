@@ -1,85 +1,81 @@
-# Broodmother - AI翻译扩展
+Broodmother - AI Translation Extension
+[中文](README_zh.md)
+A Chrome browser extension that uses AI technology to translate selected text with a right-click.
 
-Chrome浏览器扩展，使用AI技术实现右键翻译选中的文本。
-
-## 截图示例
+Screenshot Example
 <img src="https://img.picgo.net/2025/06/05/14fd7533d88f6b3cf.gif" alt="1" border="0">
 
-## 核心功能
-- 右键菜单翻译选中文本
-- 支持多API配置（可添加多个翻译服务）
-- 主题切换（亮色/暗色/自动）
-- 配置导入导出功能
-- 默认语言设置
-- 侧边栏分析：提供页面截图和选中区域分析功能，支持智能识别和提取文本内容。
+Core Features
+Right-click context menu to translate selected text
+Support for multiple API configurations (add multiple translation services)
+Theme switching (Light/Dark/Auto)
+Configuration import/export function
+Default language setting
+Sidebar Analysis: Provides page screenshot and selected area analysis, supporting intelligent recognition and text extraction.
+Installation Steps
+Clone this repository
+Open Chrome browser and go to chrome://extensions/
+Enable "Developer mode"
+Click "Load unpacked"
+Select this repository's directory
+Configuration Instructions
+Click the extension icon to open the configuration panel.
+In "Configuration Management", add a new API configuration:
+API URL: Your AI service API address (e.g., https://api.openai.com/v1/chat/completions or your self-hosted LLM service address)
+API Key: Your AI service API key
+Model Name: The name of the AI model you are using (e.g., gpt-4o or glm-4)
+Example:
+Name: OpenAI API
+API URL: https://api.openai.com/v1/chat/completions
+API Key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Model Name: gpt-4o
+Set the default target language (e.g., Chinese, English, Japanese).
+In "Settings", choose a theme (Light/Dark/Follow browser).
+How to Use Right-Click Translation
+Select text on a webpage.
+Right-click and select "Translate selected text with AI".
+The translation result will be displayed in a floating window in the upper right corner.
+How to Use the Sidebar
+The Broodmother extension provides a powerful sidebar analysis feature to help you gain a deeper understanding and analysis of the current page's content.
 
-## 安装步骤
-1. 克隆本仓库
-2. 打开Chrome浏览器，进入`chrome://extensions/`
-3. 启用"开发者模式"
-4. 点击"加载已解压的扩展程序"
-5. 选择本仓库目录
+Enable the Sidebar:
 
-## 配置说明
-1. 点击扩展图标打开配置面板
-2. 在"配置管理"中添加新的API配置：
-   - API URL: 您的AI服务API地址（例如：`https://api.openai.com/v1/chat/completions` 或您自部署的LLM服务地址）
-   - API Key: 您的AI服务API密钥
-   - 模型名称: 您使用的AI模型名称（例如：`gpt-4o` 或 `glm-4`）
-   - 示例：
-     - 名称: `OpenAI API`
-     - API URL: `https://api.openai.com/v1/chat/completions`
-     - API Key: `sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
-     - 模型名称: `gpt-4o`
-3. 设置默认目标语言（例如：`Chinese`, `English`, `Japanese`）
-4. 在"设置"中选择主题（亮色/暗色/跟随浏览器）
+Right-click the Broodmother extension icon in the browser's toolbar.
+In the pop-up menu, select the option that allows the extension to show the sidebar.
+Then, in the browser toolbar, click the sidebar button (usually an icon resembling a note or sidebar). If it doesn't appear immediately, you may need to reload the extension or the current page.
+Sidebar Interface:
 
-## 右键翻译使用方式
-1. 选中网页中的文本
-2. 右键选择"Translate selected text with AI"
-3. 翻译结果将显示在右上角浮窗
+After opening the sidebar, you will see a real-time thumbnail of the current page.
+Above the thumbnail is the "Page Preview" area. You can adjust the preview size by dragging with the mouse or using the zoom control buttons.
+Below the preview, there are two core buttons: "Analyze Selected Area" and "Analyze Entire Page".
+Analyze Page Content:
 
-## 侧边栏使用方式
-Broodmother扩展提供了强大的侧边栏分析功能，可以帮助您对当前页面内容进行更深入的理解和分析。
+Analyze Selected Area:
+Click the "Analyze Selected Area" button.
+A draggable selection box will appear on the page thumbnail. Drag the box to select the specific area of the page you want the AI to analyze.
+After confirming the selected area, click the "Analyze Selected Area" button again. The extension will capture the text from that area and send it to the AI for analysis.
+Analyze Entire Page:
+Simply click the "Analyze Entire Page" button, and the extension will capture all visible text content from the current page and send it to the AI for analysis.
+View Analysis Results:
 
-1. **启用侧边栏**：
-   - 右键点击浏览器工具栏上的Broodmother扩展图标。
-   - 在弹出的菜单中，选择"此扩展程序可以显示侧边栏"。
-   - 然后，在浏览器工具栏上，点击扩展图标旁边的侧边栏按钮（通常是类似笔记或侧边栏的图标）。如果没有立即出现，可能需要重新加载扩展或当前页面。
+The AI's analysis results will be displayed in real-time as a streaming output in the "Analysis Results" area at the bottom of the sidebar.
+You can scroll to view the full results or click the "Cancel Analysis" button to stop an ongoing analysis.
+Frequently Asked Questions (FAQ)
+Why is there no response when translating or analyzing?
 
-2. **侧边栏界面**：
-   - 打开侧边栏后，您会看到当前页面的实时缩略图。
-   - 缩略图上方是"页面预览"区域，您可以通过鼠标拖动或使用缩放控制按钮来调整预览大小。
-   - 在预览下方，有两个核心按钮："分析选中范围"和"分析整个页面"。
+Ensure you have correctly set the API URL, API Key, and Model Name in the extension's "Configuration Management".
+Check that your API key is valid and your AI service account has a sufficient balance.
+Make sure your internet connection is working properly.
+Sometimes you may need to reload the extension (disable and re-enable it on the chrome://extensions/ page) or refresh the current webpage.
+Can I use my own local AI model?
 
-3. **分析页面内容**：
-   - **分析选中范围**：
-     - 点击"分析选中范围"按钮。
-     - 在页面缩略图上，会出现一个可拖动的选择框。拖动选择框以选取您希望AI分析的特定页面区域。
-     - 确定选择区域后，再次点击"分析选中范围"按钮，扩展将截取该区域的文本并发送给AI进行分析。
-   - **分析整个页面**：
-     - 直接点击"分析整个页面"按钮，扩展将截取当前页面的全部可见文本内容，并发送给AI进行分析。
+Yes, as long as your local model provides an OpenAI-compatible API service and you can provide the corresponding API URL and API Key (if required).
+How do I import/export configurations?
 
-4. **查看分析结果**：
-   - AI的分析结果将以流式输出的形式实时显示在侧边栏底部的"分析结果"区域。
-   - 您可以滚动查看完整结果，或点击"取消分析"按钮停止正在进行的分析。
+In the extension's configuration panel, click the "Settings" tab, where you will find "Import Configuration" and "Export Configuration" buttons. Exporting will generate a JSON file, and importing allows you to read the configuration from that file.
+The sidebar doesn't show up or won't open?
 
-## 常见问题 (FAQ)
-1. **为什么翻译或分析没有反应？**
-   - 确保您已在扩展的"配置管理"中正确设置了API URL、API Key和模型名称。
-   - 检查您的API密钥是否有效，并且您的AI服务账户有足够的余额。
-   - 确保您的网络连接正常。
-   - 有时需要重新加载扩展（在`chrome://extensions/ `页面中关闭再打开）或刷新当前网页。
-
-2. **我可以使用自己的本地AI模型吗？**
-   - 可以，只要您的本地模型提供了兼容OpenAI接口的API服务，并且您可以提供对应的API URL和API Key（如果需要）。
-
-3. **如何导入/导出配置？**
-   - 在扩展的配置面板中，点击"设置"选项卡，您会找到"导入配置"和"导出配置"按钮。导出将生成一个JSON文件，导入则可以从该文件中读取配置。
-
-4. **侧边栏不显示或无法打开？**
-   - 确保您已按照"侧边栏使用方式"中的步骤启用侧边栏。
-   - 某些特定类型的页面（如Chrome内部页面`chrome://`开头的页面）可能不支持侧边栏。
-
-## 许可证
-[Apache License 2.0](LICENSE) 
+Make sure you have followed the steps in "How to Use the Sidebar" to enable it.
+Certain types of pages (such as Chrome's internal pages starting with chrome://) may not support the sidebar.
+License
+Apache License 2.0
