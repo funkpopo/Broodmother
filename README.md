@@ -1,5 +1,7 @@
 Broodmother - AI Translation Extension
+
 [中文](README_zh.md)
+
 A Chrome browser extension that uses AI technology to translate selected text with a right-click.
 
 Screenshot Example
