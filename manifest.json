@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "AI Translator",
+  "name": "Broodmother",
   "version": "1.0",
   "description": "A browser extension that uses AI to translate text.",
   "permissions": [
