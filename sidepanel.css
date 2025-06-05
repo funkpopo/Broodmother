@@ -1,0 +1,89 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 10px;
+  box-sizing: border-box;
+  background-color: #f9f9f9;
+  color: #333;
+  min-width: 300px; /* 确保侧边栏有最小宽度 */
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* 使容器占满整个侧边栏高度 */
+}
+
+#thumbnail-container {
+  position: relative;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+  overflow: hidden; /* 确保选框不会溢出 */
+  background-color: #eee; /* 缩略图加载前的背景色 */
+  display: flex; /* 用于居中图片（如果图片小于容器） */
+  align-items: center;
+  justify-content: center;
+  min-height: 150px; /* 避免在图片加载前高度为0 */
+}
+
+#thumbnail-image {
+  max-width: 100%;
+  max-height: 400px; /* 限制缩略图最大高度，避免过长 */
+  display: block; /* 移除图片下方的额外空间 */
+  object-fit: contain; /* 保持图片比例 */
+}
+
+#selection-box {
+  position: absolute;
+  border: 2px dashed #007bff;
+  background-color: rgba(0, 123, 255, 0.2);
+  box-sizing: border-box;
+  display: none; /* 初始隐藏 */
+  cursor: grab;
+}
+
+.controls {
+  margin-bottom: 10px;
+  display: flex;
+  gap: 10px; /* 按钮间距 */
+}
+
+.controls button {
+  padding: 8px 12px;
+  border: 1px solid #007bff;
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-grow: 1; /* 让按钮平分空间 */
+}
+
+.controls button:hover {
+  background-color: #0056b3;
+}
+
+.controls button:disabled {
+  background-color: #ccc;
+  border-color: #bbb;
+  cursor: not-allowed;
+}
+
+#analysis-result-container {
+  flex-grow: 1; /* 使结果区域填充剩余空间 */
+  border: 1px solid #ddd;
+  padding: 10px;
+  background-color: #fff;
+  overflow-y: auto; /* 如果内容过多则显示滚动条 */
+  min-height: 100px;
+}
+
+#analysis-result h3 {
+  margin-top: 0;
+  font-size: 1em;
+  color: #555;
+}
+
+#analysis-result div {
+  white-space: pre-wrap; /* 保留换行和空格 */
+  word-wrap: break-word;
+} 

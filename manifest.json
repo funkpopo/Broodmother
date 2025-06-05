@@ -5,9 +5,11 @@
   "description": "A browser extension that uses AI to translate text.",
   "permissions": [
     "activeTab",
+    "tabs",
     "scripting",
     "storage",
-    "contextMenus"
+    "contextMenus",
+    "sidePanel"
   ],
   "action": {
     "default_popup": "popup.html"
@@ -20,5 +22,8 @@
       "matches": ["<all_urls>"],
       "js": ["content_script.js"]
     }
-  ]
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
 }

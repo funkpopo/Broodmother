@@ -119,9 +119,97 @@ function showTranslationOverlay(textToShow, configInfo = null, isError = false) 
   });
 }
 
+function getVisibleTextNodes(element, textNodes) {
+  if (element.nodeType === Node.TEXT_NODE) {
+    if (element.textContent.trim().length > 0) {
+      // Check if the element is visible
+      const style = window.getComputedStyle(element.parentNode);
+      if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const rect = range.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) { // Ensure it has dimensions
+            textNodes.push(element);
+        }
+      }
+    }
+  } else if (element.nodeType === Node.ELEMENT_NODE) {
+    // Filter out script, style, noscript, and iframe tags
+    if (['SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'TEXTAREA', 'INPUT'].includes(element.tagName)) {
+      return;
+    }
+    // Check visibility for elements too, to prune branches early
+    const style = window.getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      return;
+    }
+    for (let i = 0; i < element.childNodes.length; i++) {
+      getVisibleTextNodes(element.childNodes[i], textNodes);
+    }
+  }
+}
+
+function extractAllText() {
+  const allTextNodes = [];
+  getVisibleTextNodes(document.body, allTextNodes);
+  return allTextNodes.map(node => node.textContent.trim()).join('\n');
+}
+
+function checkOverlap(rectA, rectB) {
+  // rectA is the selection rectangle { x, y, width, height }
+  // rectB is the element's bounding client rect { left, top, right, bottom, width, height }
+  const overlap = !(rectA.x + rectA.width < rectB.left || // Selection is to the left of element
+                  rectA.x > rectB.right ||           // Selection is to the right of element
+                  rectA.y + rectA.height < rectB.top || // Selection is above element
+                  rectA.y > rectB.bottom);           // Selection is below element
+  return overlap;
+}
+
+function extractTextFromRegion(selectionRectRatios) {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  const selectionAbs = {
+    x: selectionRectRatios.x_ratio * viewportWidth,
+    y: selectionRectRatios.y_ratio * viewportHeight,
+    width: selectionRectRatios.width_ratio * viewportWidth,
+    height: selectionRectRatios.height_ratio * viewportHeight
+  };
+  selectionAbs.right = selectionAbs.x + selectionAbs.width;
+  selectionAbs.bottom = selectionAbs.y + selectionAbs.height;
+
+  const visibleTextNodes = [];
+  getVisibleTextNodes(document.body, visibleTextNodes);
+  
+  const selectedTexts = [];
+  const processedElements = new Set(); // To avoid double counting from parent/child elements
+
+  for (const node of visibleTextNodes) {
+    let element = node.parentNode;
+    if (element && !processedElements.has(element)) {
+        const range = document.createRange();
+        range.selectNodeContents(node); // Get bounding box of the text node itself
+        const elementRect = range.getBoundingClientRect();
+
+        if (elementRect.width > 0 && elementRect.height > 0 && checkOverlap(selectionAbs, elementRect)) {
+            selectedTexts.push(node.textContent.trim());
+            // Add all parent elements up to body to avoid re-processing children of an already included parent
+            // This is a simplification; ideally, we only add the element that was deemed overlapping.
+            let currentElement = element;
+            while(currentElement && currentElement !== document.body) {
+                processedElements.add(currentElement);
+                currentElement = currentElement.parentNode;
+            }
+        }
+    }
+  }
+  return selectedTexts.join('\n');
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) {
-    return; // 忽略来自其他扩展的消息
+    console.warn("Message received from unknown sender:", sender);
+    return false; // Ignore messages not from our extension
   }
 
   if (request.action === "displayTranslation") {
@@ -140,5 +228,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else {
       showTranslationOverlay('收到意外或空的翻译响应', null, true);
     }
+  } else if (request.action === "getTextSelection") {
+    if (request.coordinates) {
+      try {
+        const text = extractTextFromRegion(request.coordinates);
+        sendResponse({ text: text });
+      } catch (e) {
+        console.error("Error extracting text from region:", e);
+        sendResponse({ error: "Error extracting text from region: " + e.message });
+      }
+    } else {
+      sendResponse({ error: "Coordinates not provided for selection" });
+    }
+    return true; // Indicate asynchronous response
+  } else if (request.action === "getTextAll") {
+    try {
+      const text = extractAllText();
+      sendResponse({ text: text });
+    } catch (e) {
+      console.error("Error extracting all text:", e);
+      sendResponse({ error: "Error extracting all text: " + e.message });
+    }
+    return true; // Indicate asynchronous response
   }
+  // Make sure to return true if any branch might respond asynchronously.
+  // The original code for displayTranslation didn't return true, implying it was sync or didn't always sendResponse.
+  // For the new branches, true is necessary.
+  // Keep an eye on whether displayTranslation needs to be async or if this broad `return true` is problematic.
+  // For now, a single `return true` at the end of new handlers should be fine.
+  // However, the structure of addListener expects a true return if *any* path is async.
+  // So, if displayTranslation is purely sync and doesn't call sendResponse, this could be an issue.
+  // Given displayTranslation *does* show UI, it likely completes its work synchronously within its call.
+  // Let's assume existing displayTranslation is okay without returning true.
+  // Only the new paths will explicitly return true.
 });

@@ -5,6 +5,12 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Translate selected text with AI",
     contexts: ["selection"]
   });
+
+  chrome.contextMenus.create({
+    id: "broodmother_parse",
+    title: "BroodMother解析",
+    contexts: ["page"]
+  });
   
   // 初始化默认主题
   chrome.storage.sync.get(['currentTheme'], (result) => {
@@ -141,21 +147,44 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         console.warn("在无ID的标签页上点击了上下文菜单:", tab);
       }
     });
+  } else if (info.menuItemId === "broodmother_parse" && tab && tab.id) {
+    chrome.sidePanel.open({ tabId: tab.id });
   }
 });
 
-// Listener for messages from content script
+// Listener for messages from content script or sidepanel
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("背景脚本收到消息:", request);
   
   // 处理配置变更通知
   if (request.action === "configChanged") {
     console.log("配置已更新");
+  } else if (request.action === "captureTab") {
+    chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
+      if (chrome.runtime.lastError) {
+        console.error("截图失败:", chrome.runtime.lastError.message);
+        sendResponse({ error: "截图失败", details: chrome.runtime.lastError.message });
+        return;
+      }
+      if (dataUrl) {
+        sendResponse({ dataUrl: dataUrl });
+      } else {
+        // Fallback or specific error if dataUrl is null but no chrome.runtime.lastError
+        console.error("截图成功但未返回dataUrl");
+        sendResponse({ error: "截图成功但未返回dataUrl" });
+      }
+    });
+    return true; // Indicates that the response is sent asynchronously
   }
   
-  // 返回true表示sendResponse可能会异步调用
+  // 返回true表示sendResponse可能会异步调用 (如果其他分支也需要异步)
+  // 如果所有分支都是同步的，或者只有这个是异步的，则这里的 return true 对于这个分支是关键的。
+  // 对于同步分支，可以不返回或返回false。
+  // 保持 return true 以确保异步操作正常工作。
   return true;
 });
+
+
 
 // 添加右键菜单动态更新，根据当前配置显示不同菜单项
 chrome.storage.onChanged.addListener((changes, area) => {
