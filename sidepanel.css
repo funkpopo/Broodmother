@@ -93,22 +93,35 @@ body {
   position: absolute;
   background-color: #007bff;
   border: 1px solid #fff;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   box-sizing: border-box;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+  z-index: 100;
+  /* 增大可点击区域 */
+  padding: 2px;
+  margin: -2px;
+}
+
+.resize-handle:hover {
+  background-color: #0056b3;
+  transform: scale(1.2);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
 /* 四角手柄 */
-.handle-nw { top: -4px; left: -4px; cursor: nw-resize; }
-.handle-ne { top: -4px; right: -4px; cursor: ne-resize; }
-.handle-sw { bottom: -4px; left: -4px; cursor: sw-resize; }
-.handle-se { bottom: -4px; right: -4px; cursor: se-resize; }
+.handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
+.handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
+.handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+.handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
 
 /* 四边手柄 */
-.handle-n { top: -4px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
-.handle-s { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
-.handle-w { top: 50%; left: -4px; transform: translateY(-50%); cursor: w-resize; }
-.handle-e { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; }
+.handle-n { top: -6px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+.handle-s { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.handle-w { top: 50%; left: -6px; transform: translateY(-50%); cursor: w-resize; }
+.handle-e { top: 50%; right: -6px; transform: translateY(-50%); cursor: e-resize; }
 
 /* 选择框状态 */
 #selection-box.dragging {
@@ -439,7 +452,143 @@ body {
 
 .back-to-bottom-btn:hover {
   background-color: #0056b3;
-  border-color: #0056b3;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+}
+
+/* 选择反馈样式 */
+.selection-feedback {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 1000;
+  white-space: nowrap;
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.selection-feedback.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 不同类型的反馈样式 */
+.feedback-success {
+  background-color: rgba(40, 167, 69, 0.9);
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.feedback-warning {
+  background-color: rgba(255, 193, 7, 0.9);
+  color: #333;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.feedback-error {
+  background-color: rgba(220, 53, 69, 0.9);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.feedback-info {
+  background-color: rgba(23, 162, 184, 0.9);
+  border: 1px solid rgba(23, 162, 184, 0.3);
+}
+
+/* 右键菜单样式 */
+.context-menu {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 150px;
+  overflow: hidden;
+  font-size: 13px;
+  z-index: 2000;
+}
+
+.context-menu-item {
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.context-menu-item:last-child {
+  border-bottom: none;
+}
+
+.context-menu-item:hover {
+  background-color: #f8f9fa;
+  color: #007bff;
+}
+
+.context-menu-item:active {
+  background-color: #e9ecef;
+}
+
+/* 右键菜单分隔线 */
+.context-menu-separator {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 5px 0;
+  padding: 0;
+}
+
+/* 缩放控制按钮 */
+.zoom-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  z-index: 100;
+  backdrop-filter: blur(5px);
+}
+
+.zoom-controls button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.zoom-controls button:hover {
+  background-color: #0056b3;
+  transform: scale(1.1);
+}
+
+.zoom-controls button:active {
+  transform: scale(0.95);
+}
+
+#zoom-level {
+  color: #333;
+  font-weight: 500;
+  min-width: 40px;
+  text-align: center;
+  font-size: 11px;
 } 

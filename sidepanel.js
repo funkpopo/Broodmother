@@ -5,6 +5,42 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// 显示选择反馈信息
+function showSelectionFeedback(message, type = 'info', duration = 3000) {
+  // 移除现有的反馈
+  const existingFeedback = document.getElementById('selection-feedback');
+  if (existingFeedback) {
+    existingFeedback.remove();
+  }
+  
+  // 创建反馈元素
+  const feedback = document.createElement('div');
+  feedback.id = 'selection-feedback';
+  feedback.className = `selection-feedback feedback-${type}`;
+  feedback.textContent = message;
+  
+  // 添加到缩略图容器
+  const thumbnailContainer = document.getElementById('thumbnail-container');
+  if (thumbnailContainer) {
+    thumbnailContainer.appendChild(feedback);
+    
+    // 添加进入动画
+    setTimeout(() => {
+      feedback.classList.add('show');
+    }, 10);
+    
+    // 自动移除
+    setTimeout(() => {
+      feedback.classList.remove('show');
+      setTimeout(() => {
+        if (feedback.parentNode) {
+          feedback.remove();
+        }
+      }, 300);
+    }, duration);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const thumbnailContainer = document.getElementById('thumbnail-container');
   const thumbnailImage = document.getElementById('thumbnail-image');
@@ -32,6 +68,19 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentTabUrl = null;
   let errorCount = 0;
   const maxErrorCount = 5;
+
+  // 缩放相关变量
+  let currentZoom = 1.0;
+  const minZoom = 0.2; // 最小20%
+  const maxZoom = 3.0; // 最大300%
+  const zoomStep = 0.1;
+  
+  // 平移相关变量
+  let isPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let currentPanX = 0;
+  let currentPanY = 0;
 
   analyzeSelectionButton.disabled = true;
 
@@ -264,9 +313,95 @@ document.addEventListener('DOMContentLoaded', () => {
     return {
       left: imageRect.left - containerRect.left,
       top: imageRect.top - containerRect.top,
-      width: displayWidth,
-      height: displayHeight
+      width: displayWidth * currentZoom,
+      height: displayHeight * currentZoom
     };
+  }
+
+  // 应用缩放和平移变换
+  function applyTransform() {
+    const translateX = currentPanX;
+    const translateY = currentPanY;
+    
+    thumbnailImage.style.transform = `scale(${currentZoom}) translate(${translateX}px, ${translateY}px)`;
+    thumbnailImage.style.transformOrigin = 'top left';
+    
+    // 更新显示尺寸
+    displayWidth = naturalWidth;
+    displayHeight = naturalHeight;
+    
+    // 更新选择框位置
+    updateSelectionDisplay();
+    
+    // 更新缩放级别显示
+    updateZoomDisplay();
+    
+    // 显示缩放信息
+    showSelectionFeedback(`缩放: ${Math.round(currentZoom * 100)}%`, 'info', 1500);
+  }
+
+  // 更新缩放级别显示
+  function updateZoomDisplay() {
+    const zoomLevelSpan = document.getElementById('zoom-level');
+    if (zoomLevelSpan) {
+      zoomLevelSpan.textContent = Math.round(currentZoom * 100) + '%';
+    }
+  }
+
+  // 处理缩放
+  function handleZoom(delta, centerX = 0, centerY = 0) {
+    const oldZoom = currentZoom;
+    
+    if (delta > 0) {
+      currentZoom = Math.min(maxZoom, currentZoom + zoomStep);
+    } else {
+      currentZoom = Math.max(minZoom, currentZoom - zoomStep);
+    }
+    
+    // 如果缩放级别改变，调整平移以保持缩放中心点
+    if (currentZoom !== oldZoom) {
+      const zoomRatio = currentZoom / oldZoom;
+      
+      // 计算相对于容器的中心点
+      const containerRect = thumbnailContainer.getBoundingClientRect();
+      const relativeX = centerX - containerRect.left;
+      const relativeY = centerY - containerRect.top;
+      
+      // 调整平移以保持缩放中心
+      currentPanX = relativeX - (relativeX - currentPanX) * zoomRatio;
+      currentPanY = relativeY - (relativeY - currentPanY) * zoomRatio;
+      
+      // 限制平移范围
+      constrainPan();
+      
+      applyTransform();
+    }
+  }
+
+  // 限制平移范围，防止图片移出容器太远
+  function constrainPan() {
+    const containerRect = thumbnailContainer.getBoundingClientRect();
+    const scaledWidth = displayWidth * currentZoom;
+    const scaledHeight = displayHeight * currentZoom;
+    
+    // 允许图片部分移出视图，但至少保留20%在视图内
+    const minVisibleRatio = 0.2;
+    const maxPanX = scaledWidth * (1 - minVisibleRatio);
+    const minPanX = -scaledWidth * (1 - minVisibleRatio);
+    const maxPanY = scaledHeight * (1 - minVisibleRatio);
+    const minPanY = -scaledHeight * (1 - minVisibleRatio);
+    
+    currentPanX = Math.max(minPanX, Math.min(maxPanX, currentPanX));
+    currentPanY = Math.max(minPanY, Math.min(maxPanY, currentPanY));
+  }
+
+  // 重置缩放和平移
+  function resetTransform() {
+    currentZoom = 1.0;
+    currentPanX = 0;
+    currentPanY = 0;
+    applyTransform();
+    showSelectionFeedback('已重置缩放', 'info');
   }
 
   // 更新选择框显示
@@ -296,13 +431,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 鼠标按下事件 - 开始创建选择框或拖拽
   thumbnailContainer.addEventListener('mousedown', (e) => {
+    // 检查是否是中键或按住Ctrl的左键（平移模式）
+    if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+      e.preventDefault();
+      isPanning = true;
+      
+      const containerRect = thumbnailContainer.getBoundingClientRect();
+      panStartX = e.clientX - containerRect.left - currentPanX;
+      panStartY = e.clientY - containerRect.top - currentPanY;
+      
+      thumbnailContainer.style.cursor = 'grabbing';
+      showSelectionFeedback('平移模式', 'info', 1000);
+      return;
+    }
+    
     if (displayWidth === 0 || displayHeight === 0) {
       console.warn("Thumbnail dimensions not ready for selection.");
+      showSelectionFeedback('缩略图尚未加载完成，请稍后再试', 'warning');
       return;
     }
 
     const bounds = getThumbnailBounds();
     if (!bounds) {
+      showSelectionFeedback('无法获取缩略图边界信息', 'error');
       return;
     }
     
@@ -323,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // 检查是否点击在缩略图上（创建新选择框）
-    if (e.target === thumbnailImage) {
+    if (e.target === thumbnailImage || thumbnailContainer.contains(e.target)) {
       // 计算相对于缩略图的坐标
       const relativeX = mouseX - bounds.left;
       const relativeY = mouseY - bounds.top;
@@ -331,10 +482,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (relativeX >= 0 && relativeX <= bounds.width && 
           relativeY >= 0 && relativeY <= bounds.height) {
         startNewSelection(mouseX, mouseY, bounds);
+        showSelectionFeedback('开始创建选择区域', 'info', 1500);
+      } else {
+        showSelectionFeedback('请在页面预览区域内点击', 'warning');
       }
     }
     
     e.preventDefault();
+    e.stopPropagation();
   });
 
   let drawing = false;
@@ -389,41 +544,65 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 鼠标移动事件
+  let mouseMoveThrottle = null;
   document.addEventListener('mousemove', (e) => {
-    const containerRect = thumbnailContainer.getBoundingClientRect();
-    const mouseX = e.clientX - containerRect.left;
-    const mouseY = e.clientY - containerRect.top;
+    // 防抖处理，提升性能
+    if (mouseMoveThrottle) {
+      clearTimeout(mouseMoveThrottle);
+    }
     
-    if (drawing) {
-      // 创建新选择框
-      const width = Math.abs(mouseX - startX_container);
-      const height = Math.abs(mouseY - startY_container);
+    mouseMoveThrottle = setTimeout(() => {
+      const containerRect = thumbnailContainer.getBoundingClientRect();
+      const mouseX = e.clientX - containerRect.left;
+      const mouseY = e.clientY - containerRect.top;
       
-      selectionBox.style.left = Math.min(startX_container, mouseX) + 'px';
-      selectionBox.style.top = Math.min(startY_container, mouseY) + 'px';
-      selectionBox.style.width = width + 'px';
-      selectionBox.style.height = height + 'px';
-    } else if (isDragging) {
-      // 拖拽移动选择框
-      const deltaX = mouseX - dragStartX;
-      const deltaY = mouseY - dragStartY;
-      
-      const bounds = getThumbnailBounds();
-      if (bounds) {
-        const newLeft = Math.max(bounds.left, 
-          Math.min(bounds.left + bounds.width - originalSelection.width, 
-            originalSelection.left + deltaX));
-        const newTop = Math.max(bounds.top,
-          Math.min(bounds.top + bounds.height - originalSelection.height,
-            originalSelection.top + deltaY));
+      if (isPanning) {
+        // 平移缩略图
+        const containerRect = thumbnailContainer.getBoundingClientRect();
+        currentPanX = e.clientX - containerRect.left - panStartX;
+        currentPanY = e.clientY - containerRect.top - panStartY;
+        
+        constrainPan();
+        applyTransform();
+      } else if (drawing) {
+        // 创建新选择框
+        const width = Math.abs(mouseX - startX_container);
+        const height = Math.abs(mouseY - startY_container);
+        
+        const newLeft = Math.min(startX_container, mouseX);
+        const newTop = Math.min(startY_container, mouseY);
         
         selectionBox.style.left = newLeft + 'px';
         selectionBox.style.top = newTop + 'px';
+        selectionBox.style.width = width + 'px';
+        selectionBox.style.height = height + 'px';
+        
+        // 实时显示选择信息
+        if (width >= 5 && height >= 5) {
+          showSelectionFeedback(`创建中: ${Math.round(width)}×${Math.round(height)} 像素`, 'info', 500);
+        }
+      } else if (isDragging) {
+        // 拖拽移动选择框
+        const deltaX = mouseX - dragStartX;
+        const deltaY = mouseY - dragStartY;
+        
+        const bounds = getThumbnailBounds();
+        if (bounds) {
+          const newLeft = Math.max(bounds.left, 
+            Math.min(bounds.left + bounds.width - originalSelection.width, 
+              originalSelection.left + deltaX));
+          const newTop = Math.max(bounds.top,
+            Math.min(bounds.top + bounds.height - originalSelection.height,
+              originalSelection.top + deltaY));
+          
+          selectionBox.style.left = newLeft + 'px';
+          selectionBox.style.top = newTop + 'px';
+        }
+      } else if (isResizing) {
+        // 调整选择框大小
+        handleResize(mouseX, mouseY);
       }
-    } else if (isResizing) {
-      // 调整选择框大小
-      handleResize(mouseX, mouseY);
-    }
+    }, 8); // 8ms 防抖，约120fps
   });
 
   // 处理选择框调整大小
@@ -440,35 +619,53 @@ document.addEventListener('DOMContentLoaded', () => {
     let newHeight = originalSelection.height;
     
     if (resizeHandle.includes('handle-n')) {
-      newTop = Math.max(bounds.top, originalSelection.top + deltaY);
+      const proposedTop = originalSelection.top + deltaY;
+      newTop = Math.max(bounds.top, Math.min(bounds.top + bounds.height - 5, proposedTop));
       newHeight = originalSelection.height + (originalSelection.top - newTop);
     }
     if (resizeHandle.includes('handle-s')) {
-      newHeight = Math.min(bounds.top + bounds.height - originalSelection.top, 
-        originalSelection.height + deltaY);
+      const maxHeight = bounds.top + bounds.height - originalSelection.top;
+      newHeight = Math.max(5, Math.min(maxHeight, originalSelection.height + deltaY));
     }
     if (resizeHandle.includes('handle-w')) {
-      newLeft = Math.max(bounds.left, originalSelection.left + deltaX);
+      const proposedLeft = originalSelection.left + deltaX;
+      newLeft = Math.max(bounds.left, Math.min(bounds.left + bounds.width - 5, proposedLeft));
       newWidth = originalSelection.width + (originalSelection.left - newLeft);
     }
     if (resizeHandle.includes('handle-e')) {
-      newWidth = Math.min(bounds.left + bounds.width - originalSelection.left,
-        originalSelection.width + deltaX);
+      const maxWidth = bounds.left + bounds.width - originalSelection.left;
+      newWidth = Math.max(5, Math.min(maxWidth, originalSelection.width + deltaX));
     }
     
-    // 确保最小尺寸
-    newWidth = Math.max(20, newWidth);
-    newHeight = Math.max(20, newHeight);
+    // 确保最小尺寸（降低到5px）
+    newWidth = Math.max(5, newWidth);
+    newHeight = Math.max(5, newHeight);
+    
+    // 确保不超出边界
+    if (newLeft + newWidth > bounds.left + bounds.width) {
+      newWidth = bounds.left + bounds.width - newLeft;
+    }
+    if (newTop + newHeight > bounds.top + bounds.height) {
+      newHeight = bounds.top + bounds.height - newTop;
+    }
     
     selectionBox.style.left = newLeft + 'px';
     selectionBox.style.top = newTop + 'px';
     selectionBox.style.width = newWidth + 'px';
     selectionBox.style.height = newHeight + 'px';
+    
+    // 实时显示调整信息
+    const tempWidth = Math.round(newWidth);
+    const tempHeight = Math.round(newHeight);
   }
 
   // 鼠标释放事件
   document.addEventListener('mouseup', (e) => {
-    if (drawing) {
+    if (isPanning) {
+      isPanning = false;
+      thumbnailContainer.style.cursor = '';
+      showSelectionFeedback('平移完成', 'info', 1000);
+    } else if (drawing) {
       drawing = false;
       finalizeSelection();
     } else if (isDragging) {
@@ -483,42 +680,239 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // 双击清除选择
+  thumbnailContainer.addEventListener('dblclick', (e) => {
+    if (e.target === thumbnailImage || e.target === thumbnailContainer) {
+      clearSelection();
+      showSelectionFeedback('已清除选择区域', 'info');
+    }
+  });
+
+  // 右键菜单功能
+  thumbnailContainer.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    
+    if (currentSelectionRatios) {
+      showSelectionContextMenu(e.clientX, e.clientY);
+    } else {
+      showSelectionFeedback('请先创建选择区域', 'warning');
+    }
+  });
+
+  // 键盘快捷键
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      clearSelection();
+      showSelectionFeedback('已取消选择', 'info');
+    } else if (e.key === 'Delete' && currentSelectionRatios) {
+      clearSelection();
+      showSelectionFeedback('已删除选择区域', 'info');
+    } else if (e.key === '0' && e.ctrlKey) {
+      // Ctrl+0 重置缩放
+      e.preventDefault();
+      resetTransform();
+    }
+  });
+
+  // 鼠标滚轮缩放
+  thumbnailContainer.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    
+    // 获取鼠标位置作为缩放中心
+    const centerX = e.clientX;
+    const centerY = e.clientY;
+    
+    // 处理缩放
+    handleZoom(-e.deltaY / 100, centerX, centerY);
+  });
+
+  // 清除选择的函数
+  function clearSelection() {
+    selectionBox.style.display = 'none';
+    currentSelectionRatios = null;
+    analyzeSelectionButton.disabled = true;
+    
+    // 清除相关状态
+    drawing = false;
+    isDragging = false;
+    isResizing = false;
+    resizeHandle = null;
+  }
+
+  // 显示右键菜单
+  function showSelectionContextMenu(x, y) {
+    // 移除现有菜单
+    const existingMenu = document.getElementById('selection-context-menu');
+    if (existingMenu) {
+      existingMenu.remove();
+    }
+
+    const menu = document.createElement('div');
+    menu.id = 'selection-context-menu';
+    menu.className = 'context-menu';
+    menu.style.position = 'fixed';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.style.zIndex = '2000';
+
+    const menuItems = [
+      {
+        label: '分析选中区域',
+        action: () => {
+          if (currentSelectionRatios) {
+            performAnalysis(true);
+          }
+        }
+      },
+      {
+        label: '复制选择信息',
+        action: () => {
+          if (currentSelectionRatios) {
+            const info = `选择区域: ${(currentSelectionRatios.width * 100).toFixed(1)}% × ${(currentSelectionRatios.height * 100).toFixed(1)}%`;
+            navigator.clipboard.writeText(info);
+          }
+        }
+      },
+      {
+        label: '清除选择',
+        action: () => {
+          clearSelection();
+          showSelectionFeedback('已清除选择区域', 'info');
+        }
+      },
+      { label: '---' }, // 分隔线
+      {
+        label: `缩放: ${Math.round(currentZoom * 100)}%`,
+        action: () => {} // 只显示信息，不执行动作
+      },
+      {
+        label: '放大 (+)',
+        action: () => {
+          const containerRect = thumbnailContainer.getBoundingClientRect();
+          handleZoom(1, containerRect.left + containerRect.width / 2, containerRect.top + containerRect.height / 2);
+        }
+      },
+      {
+        label: '缩小 (-)',
+        action: () => {
+          const containerRect = thumbnailContainer.getBoundingClientRect();
+          handleZoom(-1, containerRect.left + containerRect.width / 2, containerRect.top + containerRect.height / 2);
+        }
+      },
+      {
+        label: '重置缩放',
+        action: () => {
+          resetTransform();
+        }
+      }
+    ];
+
+    menuItems.forEach(item => {
+      const menuItem = document.createElement('div');
+      
+      if (item.label === '---') {
+        // 分隔线
+        menuItem.className = 'context-menu-separator';
+      } else {
+        menuItem.className = 'context-menu-item';
+        menuItem.textContent = item.label;
+        
+        // 如果有动作函数，添加点击事件
+        if (item.action && typeof item.action === 'function') {
+          menuItem.onclick = () => {
+            item.action();
+            menu.remove();
+          };
+        } else {
+          // 没有动作的项目（如显示信息的项目）
+          menuItem.style.color = '#999';
+          menuItem.style.cursor = 'default';
+        }
+      }
+      
+      menu.appendChild(menuItem);
+    });
+
+    document.body.appendChild(menu);
+
+    // 点击其他地方关闭菜单
+    setTimeout(() => {
+      document.addEventListener('click', function closeMenu() {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      });
+    }, 10);
+  }
+
   function finalizeSelection() {
     const bounds = getThumbnailBounds();
     if (!bounds) {
       return;
     }
     
-    const selectionLeft = parseInt(selectionBox.style.left) || 0;
-    const selectionTop = parseInt(selectionBox.style.top) || 0;
-    const selectionWidth = parseInt(selectionBox.style.width) || 0;
-    const selectionHeight = parseInt(selectionBox.style.height) || 0;
+    const selectionLeft = parseFloat(selectionBox.style.left) || 0;
+    const selectionTop = parseFloat(selectionBox.style.top) || 0;
+    const selectionWidth = parseFloat(selectionBox.style.width) || 0;
+    const selectionHeight = parseFloat(selectionBox.style.height) || 0;
 
-    // 检查选择框是否有效
-    if (selectionWidth < 20 || selectionHeight < 20) {
+    // 降低最小尺寸要求，支持更小范围的选择
+    const minSize = 5; // 从20px降低到5px
+    if (selectionWidth < minSize || selectionHeight < minSize) {
       selectionBox.style.display = 'none';
       analyzeSelectionButton.disabled = true;
       currentSelectionRatios = null;
       return;
     }
 
-    // 计算相对于缩略图的比例
+    // 精确计算相对于缩略图的位置
     const relativeLeft = selectionLeft - bounds.left;
     const relativeTop = selectionTop - bounds.top;
     
-    currentSelectionRatios = {
-      x: relativeLeft / bounds.width,
-      y: relativeTop / bounds.height,
-      width: selectionWidth / bounds.width,
-      height: selectionHeight / bounds.height
-    };
+    // 检查选择框是否完全在缩略图内
+    if (relativeLeft < 0 || relativeTop < 0 || 
+        relativeLeft + selectionWidth > bounds.width || 
+        relativeTop + selectionHeight > bounds.height) {
+      showSelectionFeedback('选择区域超出了页面范围，请重新选择', 'error');
+      // 自动修正到边界内
+      const correctedLeft = Math.max(bounds.left, Math.min(bounds.left + bounds.width - selectionWidth, selectionLeft));
+      const correctedTop = Math.max(bounds.top, Math.min(bounds.top + bounds.height - selectionHeight, selectionTop));
+      const correctedWidth = Math.min(selectionWidth, bounds.width - (correctedLeft - bounds.left));
+      const correctedHeight = Math.min(selectionHeight, bounds.height - (correctedTop - bounds.top));
+      
+      selectionBox.style.left = correctedLeft + 'px';
+      selectionBox.style.top = correctedTop + 'px';
+      selectionBox.style.width = correctedWidth + 'px';
+      selectionBox.style.height = correctedHeight + 'px';
+      
+      // 重新计算修正后的相对位置
+      const newRelativeLeft = correctedLeft - bounds.left;
+      const newRelativeTop = correctedTop - bounds.top;
+      
+      currentSelectionRatios = {
+        x: newRelativeLeft / bounds.width,
+        y: newRelativeTop / bounds.height,
+        width: correctedWidth / bounds.width,
+        height: correctedHeight / bounds.height
+      };
+    } else {
+      // 计算相对于缩略图的比例
+      currentSelectionRatios = {
+        x: relativeLeft / bounds.width,
+        y: relativeTop / bounds.height,
+        width: selectionWidth / bounds.width,
+        height: selectionHeight / bounds.height
+      };
+    }
     
-    // 确保比例在有效范围内
+    // 确保比例在有效范围内（使用更高精度）
     currentSelectionRatios.x = Math.max(0, Math.min(1, currentSelectionRatios.x));
     currentSelectionRatios.y = Math.max(0, Math.min(1, currentSelectionRatios.y));
     currentSelectionRatios.width = Math.max(0, Math.min(1 - currentSelectionRatios.x, currentSelectionRatios.width));
     currentSelectionRatios.height = Math.max(0, Math.min(1 - currentSelectionRatios.y, currentSelectionRatios.height));
 
+    // 显示选择信息
+    const areaPercent = (currentSelectionRatios.width * currentSelectionRatios.height * 100).toFixed(1);
+    
     console.log("Selection ratios:", currentSelectionRatios);
     analyzeSelectionButton.disabled = false;
   }
@@ -534,6 +928,23 @@ document.addEventListener('DOMContentLoaded', () => {
   analyzePageButton.addEventListener('click', () => {
     performAnalysis(false);
   });
+
+  // 缩放控制按钮事件
+  document.getElementById('zoom-in').addEventListener('click', () => {
+    const containerRect = thumbnailContainer.getBoundingClientRect();
+    handleZoom(1, containerRect.left + containerRect.width / 2, containerRect.top + containerRect.height / 2);
+  });
+
+  document.getElementById('zoom-out').addEventListener('click', () => {
+    const containerRect = thumbnailContainer.getBoundingClientRect();
+    handleZoom(-1, containerRect.left + containerRect.width / 2, containerRect.top + containerRect.height / 2);
+  });
+
+  document.getElementById('zoom-reset').addEventListener('click', () => {
+    resetTransform();
+  });
+
+
 
   function performAnalysis(isSelection) {
     // 重置流式状态
