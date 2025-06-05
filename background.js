@@ -372,7 +372,7 @@ ${text}
 
 请确保使用标准Markdown语法，包括标题(##)、列表(-)、粗体(**text**)等格式。`;
 
-    // 构建请求体
+    // 构建请求体（支持流式输出）
     const requestBody = {
       model: modelName,
       messages: [
@@ -380,7 +380,8 @@ ${text}
           role: "user",
           content: prompt
         }
-      ]
+      ],
+      stream: true
     };
 
     try {
@@ -408,33 +409,9 @@ ${text}
         return;
       }
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        sendResponse({ 
-          success: false, 
-          error: '无法解析AI API响应: ' + e.message 
-        });
-        return;
-      }
-      
-      // 解析API响应
-      let analysisResult = '';
-      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-        analysisResult = data.choices[0].message.content.trim();
-      } else {
-        sendResponse({ 
-          success: false, 
-          error: '未在API响应中找到分析结果，响应格式可能不兼容' 
-        });
-        return;
-      }
-      
-      sendResponse({ 
-        success: true, 
-        result: analysisResult 
-      });
+      // 处理流式响应
+      console.log("开始处理流式响应");
+      await handleStreamResponse(response, sendResponse, isSelection);
 
     } catch (error) {
       console.error('AI API调用失败:', error);
@@ -444,6 +421,107 @@ ${text}
       });
     }
   });
+}
+
+// 全局流式端口存储
+let streamPort = null;
+
+// 处理端口连接
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === "stream") {
+    streamPort = port;
+    console.log("流式端口已连接");
+    
+    port.onDisconnect.addListener(() => {
+      streamPort = null;
+      console.log("流式端口已断开");
+    });
+  }
+});
+
+// 处理流式响应
+async function handleStreamResponse(response, sendResponse, isSelection) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullContent = '';
+  
+  try {
+    // 发送开始信号
+    sendResponse({ 
+      success: true, 
+      isStreaming: true, 
+      streamStart: true 
+    });
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      
+      // 保留最后一个可能不完整的行
+      buffer = lines.pop() || '';
+      
+      for (const line of lines) {
+        if (line.trim() === '') continue;
+        if (line.trim() === 'data: [DONE]') continue;
+        
+        if (line.startsWith('data: ')) {
+          try {
+            const jsonStr = line.slice(6); // 移除 'data: ' 前缀
+            const data = JSON.parse(jsonStr);
+            
+            if (data.choices && data.choices[0] && data.choices[0].delta) {
+              const content = data.choices[0].delta.content;
+              if (content) {
+                fullContent += content;
+                console.log("收到流式数据块:", content);
+                
+                // 通过端口发送增量内容
+                if (streamPort) {
+                  streamPort.postMessage({
+                    action: "streamUpdate",
+                    chunk: content,
+                    fullContent: fullContent,
+                    isComplete: false
+                  });
+                  console.log("已发送流式数据到前端");
+                } else {
+                  console.warn("流式端口未连接");
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('解析SSE数据时出错:', error, '原始行:', line);
+          }
+        }
+      }
+    }
+    
+    // 发送完成信号
+    if (streamPort) {
+      streamPort.postMessage({
+        action: "streamUpdate",
+        chunk: '',
+        fullContent: fullContent,
+        isComplete: true
+      });
+    }
+    
+  } catch (error) {
+    console.error('处理流式响应时出错:', error);
+    sendResponse({ 
+      success: false, 
+      error: '处理流式响应时出错: ' + error.message 
+    });
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 // 添加右键菜单动态更新，根据当前配置显示不同菜单项

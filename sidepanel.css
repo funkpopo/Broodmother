@@ -293,4 +293,153 @@ body {
 /* 针对emoji的优化 */
 #analysis-result h2:before {
   margin-right: 8px;
+}
+
+/* 流式输出相关样式 */
+.streaming-container {
+  position: relative;
+}
+
+.streaming-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  min-height: 32px;
+}
+
+.cancel-button {
+  background-color: #dc3545;
+  border: 1px solid #dc3545;
+  color: white;
+  padding: 6px 8px;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.cancel-button:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+  transform: scale(1.1);
+}
+
+.cancel-icon {
+  font-weight: bold;
+  line-height: 1;
+}
+
+.info-message {
+  color: #17a2b8;
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 0.9em;
+}
+
+.stream-content {
+  min-height: 20px;
+  margin-top: 8px;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+/* 流式渲染时的淡入效果 */
+.stream-content > * {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* 减少动画强度，避免闪烁 */
+.stream-content h1,
+.stream-content h2,
+.stream-content h3,
+.stream-content p,
+.stream-content ul,
+.stream-content ol {
+  animation: none;
+  transition: opacity 0.1s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 加载状态的脉冲效果 */
+.loading-message {
+  animation: pulse 2s infinite ease-in-out;
+  flex-grow: 1;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* 减少分析结果容器的滚动条样式 */
+#analysis-result-container {
+  scroll-behavior: smooth;
+}
+
+#analysis-result-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+#analysis-result-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+#analysis-result-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+#analysis-result-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 返回底部按钮 */
+.back-to-bottom-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background-color: #007bff;
+  border: 1px solid #007bff;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 10;
+  display: none;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+.back-to-bottom-btn:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
 } 

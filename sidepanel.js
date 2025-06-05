@@ -13,6 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const analyzePageButton = document.getElementById('analyze-page');
   const analysisResultDiv = document.getElementById('analysis-result');
   const thumbnailOverlay = document.getElementById('thumbnail-overlay');
+  
+  // 流式输出相关变量
+  let isStreamingActive = false;
+  let streamBuffer = '';
+  let cancelStreamButton = null;
+  let streamPort = null;
+  let renderTimer = null;
+  let userHasScrolled = false;
+  let lastScrollTop = 0;
 
   let tabId = null;
   let naturalWidth = 0;
@@ -36,6 +45,30 @@ document.addEventListener('DOMContentLoaded', () => {
   let dragStartY = 0;
   let resizeHandle = null;
   let originalSelection = null;
+
+  // 添加滚动检测
+  const analysisResultContainer = document.getElementById('analysis-result-container');
+  if (analysisResultContainer) {
+    analysisResultContainer.addEventListener('scroll', () => {
+      const currentScrollTop = analysisResultContainer.scrollTop;
+      const scrollHeight = analysisResultContainer.scrollHeight;
+      const clientHeight = analysisResultContainer.clientHeight;
+      
+      // 检测用户是否手动滚动（不在底部）
+      const isAtBottom = Math.abs(scrollHeight - clientHeight - currentScrollTop) < 5;
+      
+      if (!isAtBottom && Math.abs(currentScrollTop - lastScrollTop) > 5) {
+        userHasScrolled = true;
+        showBackToBottomButton();
+        console.log("检测到用户手动滚动");
+      } else if (isAtBottom) {
+        userHasScrolled = false;
+        hideBackToBottomButton();
+      }
+      
+      lastScrollTop = currentScrollTop;
+    });
+  }
 
   // 初始化
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -111,6 +144,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // 页面卸载时清理
   window.addEventListener('beforeunload', () => {
     stopAutoRefresh();
+  });
+
+  // 建立流式端口连接
+  streamPort = chrome.runtime.connect({ name: "stream" });
+  streamPort.onMessage.addListener((message) => {
+    if (message.action === "streamUpdate") {
+      handleStreamUpdate(message.chunk, message.fullContent, message.isComplete);
+    }
+  });
+  
+  streamPort.onDisconnect.addListener(() => {
+    console.log("流式端口连接已断开");
+    streamPort = null;
   });
 
   function showOverlay(message) {
@@ -490,7 +536,26 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function performAnalysis(isSelection) {
-    analysisResultDiv.innerHTML = `<div class="loading-message">${isSelection ? "正在分析选中范围..." : "正在分析整个页面..."}</div>`;
+    // 重置流式状态
+    isStreamingActive = false;
+    streamBuffer = '';
+    
+    // 创建优化的流式界面
+    const loadingMessage = isSelection ? "正在分析选中范围..." : "正在分析整个页面...";
+    analysisResultDiv.innerHTML = `
+      <div class="streaming-container">
+        <div class="streaming-header">
+          <div class="loading-message">${loadingMessage}</div>
+          <button id="cancel-stream" class="cancel-button" style="display: none;" title="取消分析">
+            <span class="cancel-icon">✕</span>
+          </button>
+        </div>
+        <div id="stream-content" class="stream-content"></div>
+      </div>
+    `;
+    
+    // 获取取消按钮引用
+    cancelStreamButton = document.getElementById('cancel-stream');
     
     const message = {
       action: "extractAndAnalyze",
@@ -511,23 +576,159 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       if (response && response.success) {
-        const result = response.result || "分析完成，但没有返回结果";
-        // 使用marked库将Markdown转换为HTML
-        if (typeof marked !== 'undefined') {
-          try {
-            const htmlContent = marked.parse(result);
-            analysisResultDiv.innerHTML = htmlContent;
-          } catch (error) {
-            console.error('Markdown解析错误:', error);
-            analysisResultDiv.innerHTML = `<div class="error-message">Markdown解析失败</div><pre>${escapeHtml(result)}</pre>`;
+        if (response.isStreaming && response.streamStart) {
+          // 开始流式输出
+          isStreamingActive = true;
+          streamBuffer = '';
+          
+          // 显示取消按钮
+          if (cancelStreamButton) {
+            cancelStreamButton.style.display = 'inline-block';
+            cancelStreamButton.onclick = () => {
+              isStreamingActive = false;
+              analysisResultDiv.innerHTML = `<div class="info-message">分析已取消</div>`;
+            };
+          }
+          
+          // 更新加载消息
+          const loadingDiv = analysisResultDiv.querySelector('.loading-message');
+          if (loadingDiv) {
+            loadingDiv.textContent = '正在接收AI分析结果...';
           }
         } else {
-          // 如果marked库未加载，回退到纯文本显示
-          analysisResultDiv.innerHTML = `<pre>${escapeHtml(result)}</pre>`;
+          // 非流式响应（备用处理）
+          const result = response.result || "分析完成，但没有返回结果";
+          renderMarkdownContent(result);
         }
       } else {
         analysisResultDiv.innerHTML = `<div class="error-message">分析失败: ${response ? response.error : "未知错误"}</div>`;
       }
     });
+  }
+
+  // 防抖渲染函数
+  function debouncedRender(content, targetElement, isComplete = false) {
+    if (renderTimer) {
+      cancelAnimationFrame(renderTimer);
+    }
+    
+    renderTimer = requestAnimationFrame(() => {
+      renderMarkdownContent(content, targetElement);
+      
+      // 智能滚动到底部
+      if (!userHasScrolled) {
+        scrollToBottom(targetElement || analysisResultDiv);
+      }
+      
+      if (isComplete) {
+        // 流式传输完成的最终处理
+        completeStreamRendering();
+      }
+    });
+  }
+  
+  // 智能滚动到底部
+  function scrollToBottom(element) {
+    const container = element.closest('#analysis-result-container');
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+  
+  // 显示返回底部按钮
+  function showBackToBottomButton() {
+    if (!isStreamingActive) return;
+    
+    let backToBottomBtn = document.getElementById('back-to-bottom-btn');
+    if (!backToBottomBtn) {
+      const container = document.getElementById('analysis-result-container');
+      if (container) {
+        backToBottomBtn = document.createElement('button');
+        backToBottomBtn.id = 'back-to-bottom-btn';
+        backToBottomBtn.className = 'back-to-bottom-btn';
+        backToBottomBtn.innerHTML = '↓ 返回底部';
+        backToBottomBtn.title = '返回到最新内容';
+        
+        backToBottomBtn.addEventListener('click', () => {
+          scrollToBottom(analysisResultDiv);
+          userHasScrolled = false;
+          hideBackToBottomButton();
+        });
+        
+        container.appendChild(backToBottomBtn);
+      }
+    }
+    
+    if (backToBottomBtn) {
+      backToBottomBtn.style.display = 'block';
+    }
+  }
+  
+  // 隐藏返回底部按钮
+  function hideBackToBottomButton() {
+    const backToBottomBtn = document.getElementById('back-to-bottom-btn');
+    if (backToBottomBtn) {
+      backToBottomBtn.style.display = 'none';
+    }
+  }
+  
+  // 完成流式渲染
+  function completeStreamRendering() {
+    isStreamingActive = false;
+    
+    // 隐藏加载消息和取消按钮
+    const loadingDiv = analysisResultDiv.querySelector('.loading-message');
+    if (loadingDiv) {
+      loadingDiv.style.display = 'none';
+    }
+    
+    if (cancelStreamButton) {
+      cancelStreamButton.style.display = 'none';
+    }
+    
+    // 隐藏返回底部按钮
+    hideBackToBottomButton();
+    
+    // 最终渲染完整内容，清理流式容器
+    renderMarkdownContent(streamBuffer);
+    
+    // 重置用户滚动状态
+    userHasScrolled = false;
+  }
+
+  // 处理流式更新
+  function handleStreamUpdate(chunk, fullContent, isComplete) {
+    console.log("收到流式更新:", chunk.length > 20 ? chunk.substring(0, 20) + "..." : chunk, "是否完成:", isComplete);
+    
+    if (!isStreamingActive) {
+      console.log("流式输出未激活，忽略更新");
+      return; // 如果流已被取消，忽略更新
+    }
+    
+    streamBuffer = fullContent;
+    
+    const streamContentDiv = document.getElementById('stream-content');
+    if (streamContentDiv) {
+      // 使用防抖渲染
+      debouncedRender(streamBuffer, streamContentDiv, isComplete);
+    }
+  }
+  
+  // 渲染Markdown内容
+  function renderMarkdownContent(content, targetElement = null) {
+    const target = targetElement || analysisResultDiv;
+    
+    if (typeof marked !== 'undefined') {
+      try {
+        const htmlContent = marked.parse(content);
+        target.innerHTML = htmlContent;
+      } catch (error) {
+        console.error('Markdown解析错误:', error);
+        target.innerHTML = `<div class="error-message">Markdown解析失败</div><pre>${escapeHtml(content)}</pre>`;
+      }
+    } else {
+      // 如果marked库未加载，回退到纯文本显示
+      target.innerHTML = `<pre>${escapeHtml(content)}</pre>`;
+    }
   }
 });
