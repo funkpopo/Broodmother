@@ -66,6 +66,124 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastScrollTop = 0;
   let currentResponseId = null;
 
+  // 优化的打字机效果渲染器
+  class TypewriterRenderer {
+    constructor(targetElement, options = {}) {
+      this.targetElement = targetElement;
+      this.charDelay = options.charDelay || 30; // 每个字符显示延迟（毫秒）
+      this.isActive = false;
+      this.lastRenderedContent = '';
+      this.pendingContent = '';
+      this.animationId = null;
+      this.isRendering = false;
+      this.observer = null;
+    }
+
+    start() {
+      this.isActive = true;
+      this.lastRenderedContent = '';
+      this.pendingContent = '';
+      this.isRendering = false;
+      
+      // 清空目标元素
+      if (this.targetElement) {
+        this.targetElement.innerHTML = '';
+      }
+    }
+
+    stop() {
+      this.isActive = false;
+      this.isRendering = false;
+      if (this.animationId) {
+        clearTimeout(this.animationId);
+        this.animationId = null;
+      }
+    }
+
+    updateContent(newContent) {
+      if (!this.isActive || !newContent) return;
+      
+      // 防止内容重复
+      if (newContent === this.pendingContent) return;
+      
+      this.pendingContent = newContent;
+      
+      // 如果当前没有在渲染，开始渲染过程
+      if (!this.isRendering) {
+        this.startTypewriting();
+      }
+    }
+
+    startTypewriting() {
+      if (!this.isActive || this.isRendering) return;
+      
+      this.isRendering = true;
+      this.typeNextSegment();
+    }
+
+    typeNextSegment() {
+      if (!this.isActive || !this.pendingContent) {
+        this.isRendering = false;
+        return;
+      }
+
+      // 检查是否需要更新内容
+      if (this.lastRenderedContent.length >= this.pendingContent.length) {
+        this.isRendering = false;
+        return;
+      }
+
+      // 计算需要添加的字符数量（批量添加以提高性能）
+      const charsToAdd = Math.min(5, this.pendingContent.length - this.lastRenderedContent.length);
+      const newContent = this.pendingContent.slice(0, this.lastRenderedContent.length + charsToAdd);
+      
+      this.lastRenderedContent = newContent;
+      this.renderToElement(newContent);
+      
+      // 继续下一段
+      this.animationId = setTimeout(() => {
+        if (this.isActive) {
+          this.typeNextSegment();
+        }
+      }, this.charDelay);
+    }
+
+    renderToElement(content) {
+      if (!this.targetElement || !this.isActive) return;
+      
+      try {
+        // 使用更稳定的渲染方式
+        requestAnimationFrame(() => {
+          if (!this.isActive || !this.targetElement) return;
+          
+          if (typeof marked !== 'undefined') {
+            try {
+              const htmlContent = marked.parse(content);
+              this.targetElement.innerHTML = htmlContent;
+            } catch (markdownError) {
+              // Markdown 解析失败时显示原文
+              this.targetElement.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word;">${escapeHtml(content)}</pre>`;
+            }
+          } else {
+            this.targetElement.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word;">${escapeHtml(content)}</pre>`;
+          }
+        });
+      } catch (error) {
+        console.warn('渲染失败:', error);
+      }
+    }
+
+    forceComplete(finalContent) {
+      this.stop();
+      this.lastRenderedContent = finalContent;
+      this.pendingContent = finalContent;
+      this.renderToElement(finalContent);
+    }
+  }
+
+  // 全局打字机渲染器实例
+  let typewriterRenderer = null;
+
   let tabId = null;
   let naturalWidth = 0;
   let naturalHeight = 0;
@@ -1208,6 +1326,12 @@ document.addEventListener('DOMContentLoaded', () => {
     lastScrollTop = 0;
     currentResponseId = null;
     
+    // 停止现有的打字机渲染器
+    if (typewriterRenderer) {
+      typewriterRenderer.stop();
+      typewriterRenderer = null;
+    }
+    
     // 2. 清理定时器
     if (renderTimer) {
       cancelAnimationFrame(renderTimer);
@@ -1273,6 +1397,15 @@ document.addEventListener('DOMContentLoaded', () => {
           console.log('后台确认流式输出已开始，响应ID:', currentResponseId);
           streamBuffer = '';
           
+          // 初始化打字机渲染器
+          const streamContentDiv = document.getElementById('stream-content');
+          if (streamContentDiv) {
+            typewriterRenderer = new TypewriterRenderer(streamContentDiv, {
+              charDelay: 1 // 每个字符1毫秒延迟，提供更平滑的体验
+            });
+            typewriterRenderer.start();
+          }
+          
           // 显示取消按钮并绑定事件处理器
           if (cancelStreamButton) {
             cancelStreamButton.style.display = 'inline-block';
@@ -1301,33 +1434,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
               }
               
-              // 3. 清理定时器
+              // 3. 停止打字机渲染器
+              if (typewriterRenderer) {
+                typewriterRenderer.stop();
+                typewriterRenderer = null;
+              }
+              
+              // 4. 清理定时器
               if (renderTimer) {
                 cancelAnimationFrame(renderTimer);
                 renderTimer = null;
               }
               
-              // 4. 保留已显示的内容，添加中断标识
+              // 5. 优化中断后的内容显示
               const streamContentDiv = document.getElementById('stream-content');
               if (streamContentDiv && streamBuffer) {
-                // 先渲染已有的Markdown内容
+                // 渲染已有的内容，然后重构整个布局
                 renderMarkdownContent(streamBuffer, streamContentDiv);
+                
+                // 重构布局，移除空白区域
+                setTimeout(() => {
+                  const content = streamContentDiv.innerHTML;
+                  if (content.trim()) {
+                    // 如果有内容，直接显示在分析结果区域
+                    analysisResultDiv.innerHTML = content;
+                  } else {
+                    // 如果没有内容，显示中断消息
+                    analysisResultDiv.innerHTML = `<div class="info-message">${getText('analysis_cancelled')}</div>`;
+                  }
+                }, 100);
               } else {
                 // 如果没有流式内容，显示中断消息
                 analysisResultDiv.innerHTML = `<div class="info-message">${getText('analysis_cancelled')}</div>`;
               }
               
-              // 5. 隐藏取消按钮和加载状态
-              cancelStreamButton.style.display = 'none';
-              const loadingDiv = analysisResultDiv.querySelector('.loading-message');
-              if (loadingDiv) {
-                loadingDiv.style.display = 'none';
-              }
-              
-              // 6. 隐藏返回底部按钮
-              hideBackToBottomButton();
-              
-              // 7. 重置状态
+              // 6. 隐藏取消按钮和加载状态（延迟执行避免闪烁）
+              setTimeout(() => {
+                if (cancelStreamButton) {
+                  cancelStreamButton.style.display = 'none';
+                }
+                const loadingDiv = analysisResultDiv.querySelector('.loading-message');
+                if (loadingDiv) {
+                  loadingDiv.style.display = 'none';
+                }
+                const streamingContainer = analysisResultDiv.querySelector('.streaming-container');
+                if (streamingContainer) {
+                  // 移除流式容器的结构，只保留内容
+                  const streamContent = streamingContainer.querySelector('.stream-content');
+                  if (streamContent && streamContent.innerHTML.trim()) {
+                    analysisResultDiv.innerHTML = streamContent.innerHTML;
+                  }
+                }
+                             }, 150);
+               
+               // 7. 隐藏返回底部按钮
+               hideBackToBottomButton();
+               
+               // 8. 重置状态
               streamBuffer = '';
               userHasScrolled = false;
               lastScrollTop = 0;
@@ -1440,11 +1603,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // 彻底停用流式状态
     isStreamingActive = false;
     
+    // 停止打字机渲染器
+    if (typewriterRenderer) {
+      typewriterRenderer.stop();
+      typewriterRenderer = null;
+    }
+    
     // 清理定时器
     if (renderTimer) {
       cancelAnimationFrame(renderTimer);
       renderTimer = null;
     }
+    
+    // 优化完成后的布局，移除流式容器结构
+    setTimeout(() => {
+      const streamingContainer = analysisResultDiv.querySelector('.streaming-container');
+      if (streamingContainer) {
+        const streamContent = streamingContainer.querySelector('.stream-content');
+        if (streamContent && streamContent.innerHTML.trim()) {
+          // 直接将内容移到分析结果区域，移除多余结构
+          analysisResultDiv.innerHTML = streamContent.innerHTML;
+        }
+      }
+    }, 200);
     
     // 隐藏加载消息和取消按钮
     const loadingDiv = analysisResultDiv.querySelector('.loading-message');
@@ -1478,34 +1659,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 处理流式更新
   function handleStreamUpdate(chunk, fullContent, isComplete, responseId = null) {
-    console.log('处理流式更新:', {
-      chunkLength: chunk?.length || 0,
-      fullContentLength: fullContent?.length || 0,
-      isComplete,
-      responseId,
-      currentResponseId,
-      isStreamingActive,
-      hasStreamContentDiv: !!document.getElementById('stream-content')
-    });
-    
     // 严格的状态检查，防止过期消息处理
     if (!isStreamingActive) {
-      console.warn('流式状态未激活，忽略更新');
       return;
     }
     
-    // 检查DOM元素是否存在
-    const streamContentDiv = document.getElementById('stream-content');
-    if (!streamContentDiv) {
-      console.warn('流式内容容器不存在，可能已被清理');
+    // 验证响应ID
+    if (responseId && currentResponseId && responseId !== currentResponseId) {
       return;
     }
     
     // 更新缓冲区
     streamBuffer = fullContent || '';
     
-    // 使用防抖渲染，传递响应ID
-    debouncedRender(streamBuffer, streamContentDiv, isComplete, responseId || currentResponseId);
+    // 使用打字机渲染器更新内容
+    if (typewriterRenderer && typewriterRenderer.isActive) {
+      typewriterRenderer.updateContent(streamBuffer);
+    } else {
+      // 回退到直接渲染
+      const streamContentDiv = document.getElementById('stream-content');
+      if (streamContentDiv) {
+        renderMarkdownContent(streamBuffer, streamContentDiv);
+      }
+    }
+    
+    // 智能滚动到底部（减少频率）
+    if (!userHasScrolled) {
+      requestAnimationFrame(() => {
+        const streamContentDiv = document.getElementById('stream-content');
+        if (streamContentDiv) {
+          scrollToBottom(streamContentDiv);
+        }
+      });
+    }
+    
+    // 如果流式传输完成，执行最终处理
+    if (isComplete) {
+      setTimeout(() => {
+        if (typewriterRenderer && typewriterRenderer.isActive) {
+          typewriterRenderer.forceComplete(streamBuffer);
+        }
+        completeStreamRendering();
+      }, 100); // 减少延迟
+    }
   }
   
   // 渲染Markdown内容

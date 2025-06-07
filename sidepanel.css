@@ -586,6 +586,19 @@ body.auto-theme {
 /* 流式输出相关样式 */
 .streaming-container {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 50px;
+}
+
+/* 优化中断或完成后的内容布局 */
+.analysis-complete {
+  padding: 0;
+  margin: 0;
+}
+
+.analysis-complete * {
+  margin-top: 0;
 }
 
 .streaming-header {
@@ -650,27 +663,26 @@ body.auto-theme {
   min-height: 20px;
   margin-top: 8px;
   opacity: 1;
-  transition: opacity 0.2s ease;
   /* 确保内容自适应容器宽度 */
   width: 100%;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  position: relative;
 }
 
-/* 流式渲染时的淡入效果 */
+/* 移除所有闪烁动画，采用打字机效果 */
 .stream-content > * {
-  animation: fadeIn 0.3s ease-in;
+  animation: none;
 }
 
-/* 减少动画强度，避免闪烁 */
+/* 流式内容元素的基础样式 */
 .stream-content h1,
 .stream-content h2,
 .stream-content h3,
 .stream-content p,
 .stream-content ul,
 .stream-content ol {
-  animation: none;
-  transition: opacity 0.1s ease;
+  transition: none;
 }
 
 /* 优化流式输出的间距，使其更紧凑 */
@@ -724,6 +736,12 @@ body.auto-theme {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 移除所有可能导致闪烁的动画，专注于平滑显示 */
+.stream-content * {
+  transition: none !important;
+  animation: none !important;
 }
 
 /* 加载状态的脉冲效果 */
@@ -938,17 +956,21 @@ body.auto-theme {
 /* 缩放控制按钮 */
 .zoom-controls {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  bottom: 5px;
+  right: 5px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  gap: 1px;
+  border-radius: 3px;
+  padding: 2px;
+  font-size: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
   z-index: 100;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(3px);
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
 }
 
 /* 亮色主题 - 缩放控制 */
@@ -975,16 +997,19 @@ body.auto-theme {
   background-color: var(--light-btn-primary);
   color: white;
   border: none;
-  border-radius: 3px;
-  width: 24px;
-  height: 24px;
+  border-radius: 2px;
+  width: 16px;
+  height: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 9px;
   font-weight: bold;
   transition: all 0.2s ease;
+  line-height: 1;
+  padding: 0;
+  min-height: 12px;
 }
 
 .zoom-controls button:hover {
@@ -998,9 +1023,15 @@ body.auto-theme {
 
 #zoom-level {
   font-weight: 500;
-  min-width: 40px;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
   text-align: center;
-  font-size: 11px;
+  font-size: 8px;
+  margin: 1px 0;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 /* 分析中断通知样式 */
