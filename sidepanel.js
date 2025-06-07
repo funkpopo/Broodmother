@@ -158,6 +158,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 清理错误信息的辅助函数
+  function clearErrorMessages() {
+    // 清除分析结果区域的错误信息
+    if (analysisResultDiv.innerHTML.includes('error-message')) {
+      analysisResultDiv.innerHTML = '';
+    }
+    // 隐藏overlay
+    hideOverlay();
+  }
+
   // 更新标签页信息
   function updateTabInfo(tabInfo) {
     const newTabId = tabInfo.id;
@@ -168,6 +178,9 @@ document.addEventListener('DOMContentLoaded', () => {
       showRestrictedPageError(newTabUrl);
       return;
     }
+    
+    // 清除之前的错误信息（从受限页面切换到正常页面时）
+    clearErrorMessages();
     
     // 重新启用按钮（如果之前被禁用）
     analyzePageButton.disabled = false;
