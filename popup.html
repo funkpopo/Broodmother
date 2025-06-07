@@ -384,11 +384,7 @@
       
               <!-- 设置Tab -->
         <div class="tab-content" id="settings-tab">
-          <div class="action-buttons">
-            <button id="exportBtn" class="btn-secondary" data-i18n="export_configs">导出所有配置</button>
-            <button id="importBtn" class="btn-secondary" data-i18n="import_configs">导入配置</button>
-          </div>
-          <div class="form-group" style="margin-top: 15px;">
+          <div class="form-group">
             <label for="defaultLang" data-i18n="default_lang">默认翻译语言:</label>
             <select id="defaultLang">
               <option value="Chinese">中文</option>
@@ -399,6 +395,17 @@
               <option value="German">德文</option>
               <option value="Spanish">西班牙文</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label for="apiFailover">API自动故障转移:</label>
+            <input type="checkbox" id="apiFailover">
+            <small style="display: block; color: #666; margin-top: 5px;">
+              开启后，当主API失败时会自动尝试其他配置的API
+            </small>
+          </div>
+          <div class="action-buttons" style="margin-top: 15px;">
+            <button id="exportBtn" class="btn-secondary" data-i18n="export_configs">导出所有配置</button>
+            <button id="importBtn" class="btn-secondary" data-i18n="import_configs">导入配置</button>
           </div>
         </div>
     </div>

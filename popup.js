@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabContents = document.querySelectorAll('.tab-content');
   
   // 验证关键DOM元素是否存在
-  
+  console.log({
     configNameInput: !!configNameInput,
     apiUrlInput: !!apiUrlInput,
     apiKeyInput: !!apiKeyInput,
@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentTheme = 'light';
   let deleteConfigId = null;
   let defaultLanguage = 'Chinese';
+  let apiFailoverEnabled = false;
   
   // 显示状态消息
   function showStatus(message, isError = false) {
@@ -88,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 加载配置
   function loadConfigs() {
-    chrome.storage.sync.get(['configs', 'currentConfigId', 'currentTheme', 'defaultLanguage'], (result) => {
+    chrome.storage.sync.get(['configs', 'currentConfigId', 'currentTheme', 'defaultLanguage', 'apiFailover'], (result) => {
       if (chrome.runtime.lastError) {
         showStatus('load_config_failed: ' + chrome.runtime.lastError.message, true);
         return;
@@ -98,10 +99,17 @@ document.addEventListener('DOMContentLoaded', () => {
       currentConfigId = result.currentConfigId || null;
       currentTheme = result.currentTheme || 'light';
       defaultLanguage = result.defaultLanguage || 'Chinese';
+      apiFailoverEnabled = result.apiFailover || false;
       
       // 设置默认语言
       if (defaultLangSelect) {
         defaultLangSelect.value = defaultLanguage;
+      }
+      
+      // 设置API故障转移开关
+      const apiFailoverCheckbox = document.getElementById('apiFailover');
+      if (apiFailoverCheckbox) {
+        apiFailoverCheckbox.checked = apiFailoverEnabled;
       }
       
       // 应用主题
@@ -123,7 +131,18 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 保存配置
   function saveConfigs() {
-    chrome.storage.sync.set({ configs, currentConfigId, currentTheme, defaultLanguage }, () => {
+    const apiFailoverCheckbox = document.getElementById('apiFailover');
+    if (apiFailoverCheckbox) {
+      apiFailoverEnabled = apiFailoverCheckbox.checked;
+    }
+    
+    chrome.storage.sync.set({ 
+      configs, 
+      currentConfigId, 
+      currentTheme, 
+      defaultLanguage, 
+      apiFailover: apiFailoverEnabled 
+    }, () => {
       if (chrome.runtime.lastError) {
         showStatus('save_config_failed: ' + chrome.runtime.lastError.message, true);
       }
@@ -281,7 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (configs.length === 0) {
       const emptyItem = document.createElement('div');
       emptyItem.className = 'config-item';
-      emptyItem.textContent = '暂无配置，请添加';
+      const currentLang = i18n.getCurrentLanguage();
+      emptyItem.textContent = currentLang === 'zh' ? '暂无配置，请添加' : 'No configurations, please add one';
       configList.appendChild(emptyItem);
       return;
     }
@@ -304,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // 使用按钮
       const useButton = document.createElement('button');
-      useButton.textContent = '使用';
+      useButton.textContent = getText('use_config');
       useButton.className = 'btn-primary';
       useButton.style.padding = '4px 8px';
       useButton.style.fontSize = '12px';
@@ -313,13 +333,15 @@ document.addEventListener('DOMContentLoaded', () => {
         currentConfigId = config.id;
         saveConfigs();
         renderConfigList();
-        showStatus(`已切换到配置: ${config.name}`);
+        const currentLang = i18n.getCurrentLanguage();
+        const message = currentLang === 'zh' ? `已切换到配置: ${config.name}` : `Switched to config: ${config.name}`;
+        showStatus(message);
       });
       buttonsDiv.appendChild(useButton);
       
       // 编辑按钮
       const editButton = document.createElement('button');
-      editButton.textContent = '编辑';
+      editButton.textContent = getText('edit_config');
       editButton.className = 'btn-secondary';
       editButton.style.padding = '4px 8px';
       editButton.style.fontSize = '12px';
@@ -331,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // 删除按钮
       const deleteButton = document.createElement('button');
-      deleteButton.textContent = '删除';
+      deleteButton.textContent = getText('delete_config');
       deleteButton.className = 'btn-danger';
       deleteButton.style.padding = '4px 8px';
       deleteButton.style.fontSize = '12px';
@@ -651,11 +673,22 @@ document.addEventListener('DOMContentLoaded', () => {
       defaultLangSelect.addEventListener('change', () => {
         defaultLanguage = defaultLangSelect.value;
         saveConfigs();
-        showStatus('默认语言已更新');
+        showStatus('default_language_updated');
       });
       
     } else {
       
+    }
+    
+    // API故障转移开关事件
+    const apiFailoverCheckbox = document.getElementById('apiFailover');
+    if (apiFailoverCheckbox) {
+      apiFailoverCheckbox.addEventListener('change', () => {
+        saveConfigs();
+        const currentLang = i18n.getCurrentLanguage();
+        const message = currentLang === 'zh' ? '设置已保存' : 'Settings saved';
+        showStatus(message);
+      });
     }
   }
   
@@ -678,8 +711,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (languageToggle && languageLabel) {
       languageToggle.addEventListener('click', () => {
+        // 切换语言
         i18n.toggleLanguage();
+        
+        // 立即更新界面
         updateLanguageLabel();
+        i18n.updateTexts();
+        updateAllTexts();
+        
+        // 显示状态提示
         showStatus(getText('language_switched'));
       });
       
@@ -710,22 +750,65 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 更新所有需要特殊处理的文本
   function updateAllTexts() {
-    // 更新状态消息中的硬编码文本
     const currentLang = i18n.getCurrentLanguage();
     
     // 更新 placeholder 文本
     const configNameInput = document.getElementById('configName');
     const apiKeyInput = document.getElementById('apiKey');
     const modelNameInput = document.getElementById('modelName');
+    const importText = document.getElementById('importText');
     
     if (configNameInput) {
-      configNameInput.placeholder = currentLang === 'zh' ? '输入配置名称' : 'Enter configuration name';
+      configNameInput.placeholder = getText('config_name');
     }
     if (apiKeyInput) {
-      apiKeyInput.placeholder = currentLang === 'zh' ? '输入API密钥' : 'Enter API key';
+      apiKeyInput.placeholder = getText('api_key');
     }
     if (modelNameInput) {
       modelNameInput.placeholder = currentLang === 'zh' ? '例如：gpt-3.5-turbo' : 'e.g.: gpt-3.5-turbo';
+    }
+    if (importText) {
+      importText.placeholder = getText('import_config_placeholder');
+    }
+    
+    // 更新下拉选项文本
+    const defaultLangSelect = document.getElementById('defaultLang');
+    if (defaultLangSelect) {
+      const currentValue = defaultLangSelect.value;
+      if (currentLang === 'zh') {
+        defaultLangSelect.innerHTML = `
+          <option value="Chinese">中文</option>
+          <option value="English">英文</option>
+          <option value="Japanese">日文</option>
+          <option value="Korean">韩文</option>
+          <option value="French">法文</option>
+          <option value="German">德文</option>
+          <option value="Spanish">西班牙文</option>
+        `;
+      } else {
+        defaultLangSelect.innerHTML = `
+          <option value="Chinese">Chinese</option>
+          <option value="English">English</option>
+          <option value="Japanese">Japanese</option>
+          <option value="Korean">Korean</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Spanish">Spanish</option>
+        `;
+      }
+      defaultLangSelect.value = currentValue;
+    }
+    
+    // 更新API故障转移标签和说明
+    const apiFailoverLabel = document.querySelector('label[for="apiFailover"]');
+    const apiFailoverHelpText = document.querySelector('label[for="apiFailover"] + small');
+    if (apiFailoverLabel) {
+      apiFailoverLabel.textContent = currentLang === 'zh' ? 'API自动故障转移:' : 'API Auto Failover:';
+    }
+    if (apiFailoverHelpText) {
+      apiFailoverHelpText.textContent = currentLang === 'zh' ? 
+        '开启后，当主API失败时会自动尝试其他配置的API' : 
+        'When enabled, automatically tries other API configs if the primary fails';
     }
     
     // 重新渲染配置列表（如果存在）

@@ -18,12 +18,6 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content_script.js"]
-    }
-  ],
   "side_panel": {
     "default_path": "sidepanel.html"
   }

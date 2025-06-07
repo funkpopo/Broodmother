@@ -256,7 +256,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (errorCount === 0) {
       hideOverlay();
     } else {
-      showOverlay("正在重试获取截图...");
+      const currentLang = i18n.getCurrentLanguage();
+      const retryMessage = currentLang === 'zh' ? '正在重试获取截图...' : 'Retrying screenshot...';
+      showOverlay(retryMessage);
     }
     
     chrome.runtime.sendMessage({ action: "captureTab" }, (response) => {
@@ -264,7 +266,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         errorCount++;
         if (errorCount >= maxErrorCount) {
-          showOverlay("截图服务暂时不可用，将继续自动重试");
+          const currentLang = i18n.getCurrentLanguage();
+          const serviceUnavailableMessage = currentLang === 'zh' ? '截图服务暂时不可用，将继续自动重试' : 'Screenshot service temporarily unavailable, will continue retrying';
+          showOverlay(serviceUnavailableMessage);
         }
         return;
       }
@@ -289,23 +293,33 @@ document.addEventListener('DOMContentLoaded', () => {
         thumbnailImage.onerror = () => {
           
           errorCount++;
-          showOverlay("无法加载页面缩略图，自动重试中...");
+          const currentLang = i18n.getCurrentLanguage();
+          const loadErrorMessage = currentLang === 'zh' ? '无法加载页面缩略图，自动重试中...' : 'Cannot load page thumbnail, retrying...';
+          showOverlay(loadErrorMessage);
         };
       } else if (response && response.error) {
         
         errorCount++;
         if (errorCount >= maxErrorCount) {
-          showOverlay("截图功能暂时不可用，将继续自动重试");
+          const currentLang = i18n.getCurrentLanguage();
+          const unavailableMessage = currentLang === 'zh' ? '截图功能暂时不可用，将继续自动重试' : 'Screenshot function temporarily unavailable, will continue retrying';
+          showOverlay(unavailableMessage);
         } else {
-          showOverlay("正在重试获取截图...");
+          const currentLang = i18n.getCurrentLanguage();
+          const retryMessage = currentLang === 'zh' ? '正在重试获取截图...' : 'Retrying screenshot...';
+          showOverlay(retryMessage);
         }
       } else {
         
         errorCount++;
         if (errorCount >= maxErrorCount) {
-          showOverlay("截图服务异常，将继续自动重试");
+          const currentLang = i18n.getCurrentLanguage();
+          const serviceErrorMessage = currentLang === 'zh' ? '截图服务异常，将继续自动重试' : 'Screenshot service error, will continue retrying';
+          showOverlay(serviceErrorMessage);
         } else {
-          showOverlay("正在重试获取截图...");
+          const currentLang = i18n.getCurrentLanguage();
+          const retryMessage = currentLang === 'zh' ? '正在重试获取截图...' : 'Retrying screenshot...';
+          showOverlay(retryMessage);
         }
       }
     });
@@ -349,7 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateZoomDisplay();
     
     // 显示缩放信息
-    showSelectionFeedback(`缩放: ${Math.round(currentZoom * 100)}%`, 'info', 1500);
+    const currentLang = i18n.getCurrentLanguage();
+    const zoomMessage = currentLang === 'zh' ? `缩放: ${Math.round(currentZoom * 100)}%` : `Zoom: ${Math.round(currentZoom * 100)}%`;
+    showSelectionFeedback(zoomMessage, 'info', 1500);
   }
 
   // 仅应用平移变换，不触发选择框更新
@@ -422,7 +438,9 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPanX = 0;
     currentPanY = 0;
     applyTransform();
-    showSelectionFeedback('已重置缩放', 'info');
+    const currentLang = i18n.getCurrentLanguage();
+    const resetMessage = currentLang === 'zh' ? '已重置缩放' : 'Zoom reset';
+    showSelectionFeedback(resetMessage, 'info');
   }
 
   // 更新选择框显示
@@ -1113,7 +1131,8 @@ document.addEventListener('DOMContentLoaded', () => {
           // 更新加载消息
           const loadingDiv = analysisResultDiv.querySelector('.loading-message');
           if (loadingDiv) {
-            loadingDiv.textContent = '正在接收AI分析结果...';
+            const currentLang = i18n.getCurrentLanguage();
+        loadingDiv.textContent = getText('analysis_in_progress');
           }
         } else {
           // 非流式响应（备用处理）
@@ -1166,8 +1185,9 @@ document.addEventListener('DOMContentLoaded', () => {
         backToBottomBtn = document.createElement('button');
         backToBottomBtn.id = 'back-to-bottom-btn';
         backToBottomBtn.className = 'back-to-bottom-btn';
-        backToBottomBtn.innerHTML = '↓ 返回底部';
-        backToBottomBtn.title = '返回到最新内容';
+        const currentLang = i18n.getCurrentLanguage();
+        backToBottomBtn.innerHTML = currentLang === 'zh' ? '↓ 返回底部' : '↓ Back to Bottom';
+        backToBottomBtn.title = getText('back_to_bottom');
         
         backToBottomBtn.addEventListener('click', () => {
           scrollToBottom(analysisResultDiv);
@@ -1244,7 +1264,9 @@ document.addEventListener('DOMContentLoaded', () => {
         target.innerHTML = htmlContent;
       } catch (error) {
         
-        target.innerHTML = `<div class="error-message">Markdown解析失败</div><pre>${escapeHtml(content)}</pre>`;
+        const currentLang = i18n.getCurrentLanguage();
+        const errorMessage = currentLang === 'zh' ? 'Markdown解析失败' : 'Markdown parsing failed';
+        target.innerHTML = `<div class="error-message">${errorMessage}</div><pre>${escapeHtml(content)}</pre>`;
       }
     } else {
       // 如果marked库未加载，回退到纯文本显示
@@ -1271,8 +1293,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (languageToggleSide && languageLabelSide) {
       languageToggleSide.addEventListener('click', () => {
+        // 切换语言
         i18n.toggleLanguage();
+        
+        // 立即更新界面
         updateLanguageLabelSide();
+        i18n.updateTexts();
+        updateSidepanelTexts();
+        
+        // 显示状态提示
         showSelectionFeedback(getText('language_switched'), 'success');
       });
       
@@ -1305,6 +1334,26 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateSidepanelTexts() {
     const currentLang = i18n.getCurrentLanguage();
     
+    // 更新缩放控制按钮的title属性
+    const zoomControls = document.querySelectorAll('.zoom-control');
+    zoomControls.forEach(control => {
+      const zoomValue = control.getAttribute('data-zoom');
+      if (zoomValue === 'in') {
+        control.title = getText('zoom_in');
+      } else if (zoomValue === 'out') {
+        control.title = getText('zoom_out');
+      } else if (zoomValue === 'reset') {
+        control.title = getText('zoom_reset');
+      }
+    });
+    
+    // 更新返回底部按钮文本（如果存在）
+    const backToBottomBtn = document.getElementById('back-to-bottom-btn');
+    if (backToBottomBtn) {
+      backToBottomBtn.innerHTML = currentLang === 'zh' ? '↓ 返回底部' : '↓ Back to Bottom';
+      backToBottomBtn.title = getText('back_to_bottom');
+    }
+    
     // 更新分析按钮状态
     if (analyzeSelectionButton) {
       analyzeSelectionButton.disabled = !currentSelectionRatios;
@@ -1316,6 +1365,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const text = msg.textContent;
       if (text.includes('无法获取当前标签页信息') || text.includes('Cannot get current tab information')) {
         msg.textContent = getText('cannot_get_tab_info');
+      } else if (text.includes('截图失败') || text.includes('Screenshot failed')) {
+        msg.textContent = getText('screenshot_failed');
+      } else if (text.includes('分析失败') || text.includes('Analysis failed')) {
+        msg.textContent = getText('analysis_failed');
+      }
+    });
+    
+    // 更新选择相关的反馈文本
+    const feedbackElements = document.querySelectorAll('.selection-feedback');
+    feedbackElements.forEach(feedback => {
+      const text = feedback.textContent;
+      if (text.includes('选择已清除') || text.includes('Selection cleared')) {
+        feedback.textContent = getText('selection_cleared');
+      } else if (text.includes('选择已确定') || text.includes('Selection finalized')) {
+        feedback.textContent = getText('selection_finalized');
       }
     });
   }
@@ -1332,13 +1396,24 @@ document.addEventListener('DOMContentLoaded', () => {
       applyTheme(currentTheme);
     });
 
-    // 监听storage变化，实时同步主题设置
+    // 监听storage变化，实时同步主题和语言设置
     chrome.storage.onChanged.addListener((changes, namespace) => {
       if (namespace === 'sync' && changes.currentTheme) {
         const newTheme = changes.currentTheme.newValue;
         if (newTheme !== currentTheme) {
           currentTheme = newTheme;
           applyTheme(currentTheme);
+        }
+      }
+      
+      // 监听语言变化，实现跨页面语言同步
+      if (namespace === 'sync' && changes.currentLanguage) {
+        const newLanguage = changes.currentLanguage.newValue;
+        if (newLanguage !== i18n.getCurrentLanguage()) {
+          i18n.setLanguage(newLanguage);
+          updateLanguageLabelSide();
+          i18n.updateTexts();
+          updateSidepanelTexts();
         }
       }
     });

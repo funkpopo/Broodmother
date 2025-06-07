@@ -20,10 +20,10 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// Reusable function to perform translation
+// Reusable function to perform translation with failover support
 async function performTranslation(selectedText, callback) {
-  // 获取当前配置和默认语言
-  chrome.storage.sync.get(['configs', 'currentConfigId', 'defaultLanguage'], async (settings) => {
+  // 获取配置和故障转移设置
+  chrome.storage.sync.get(['configs', 'currentConfigId', 'defaultLanguage', 'apiFailover'], async (settings) => {
     if (chrome.runtime.lastError) {
       callback({ error: '获取配置失败', details: chrome.runtime.lastError.message });
       return;
@@ -32,120 +32,186 @@ async function performTranslation(selectedText, callback) {
     const configs = settings.configs || [];
     const currentConfigId = settings.currentConfigId;
     const defaultLanguage = settings.defaultLanguage || 'Chinese';
+    const apiFailoverEnabled = settings.apiFailover || false;
     
-    // 检查是否有配置
     if (!configs || configs.length === 0) {
       callback({ error: '未配置API信息，请在扩展弹出窗口中设置' });
       return;
     }
     
-    // 获取当前配置
-    const currentConfig = configs.find(config => config.id === currentConfigId);
-    if (!currentConfig) {
-      callback({ error: '当前配置无效，请在扩展弹出窗口中重新设置' });
-      return;
-    }
+    // 构建API配置顺序
+    let configsToTry = [];
     
-    const { apiUrl, apiKey, modelName, name } = currentConfig;
-
-    // 日志记录
-    
-    
-    
-    
-    
-
-    if (!apiUrl || !apiKey || !modelName) {
-      callback({ error: '配置信息不完整，请检查API URL、API Key和模型名称' });
-      return;
-    }
-
-    if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
-      callback({ error: 'API URL格式无效，必须以http://或https://开头' });
-      return;
-    }
-
-    // 构建请求体
-    const requestBody = {
-      model: modelName,
-      messages: [
-        {
-          role: "user",
-          content: `Translate the following text into ${defaultLanguage}: '${selectedText}'`
+    if (apiFailoverEnabled) {
+      // 如果启用故障转移，先尝试当前配置，然后是其他配置
+      const currentConfig = configs.find(config => config.id === currentConfigId);
+      if (currentConfig) {
+        configsToTry.push(currentConfig);
+      }
+      // 添加其他配置
+      configs.forEach(config => {
+        if (config.id !== currentConfigId) {
+          configsToTry.push(config);
         }
-      ]
+      });
+    } else {
+      // 如果未启用故障转移，只使用当前配置
+      const currentConfig = configs.find(config => config.id === currentConfigId);
+      if (currentConfig) {
+        configsToTry.push(currentConfig);
+      } else {
+        callback({ error: '当前配置无效，请在扩展弹出窗口中重新设置' });
+        return;
+      }
+    }
+    
+    if (configsToTry.length === 0) {
+      callback({ error: '没有可用的API配置' });
+      return;
+    }
+
+    // 尝试API配置
+    let lastError = null;
+    for (const config of configsToTry) {
+      try {
+        const result = await tryApiCall(selectedText, defaultLanguage, config);
+        if (result.success) {
+          callback({
+            translatedText: result.translatedText,
+            configName: config.name
+          });
+          return;
+        } else {
+          lastError = result;
+          console.warn(`API配置 "${config.name}" 翻译失败:`, result.details);
+        }
+      } catch (error) {
+        lastError = { error: '网络错误', details: error.message };
+        console.warn(`API配置 "${config.name}" 出现异常:`, error.message);
+      }
+    }
+
+    // 所有配置都失败了
+    callback({ 
+      error: '所有API配置都翻译失败', 
+      details: lastError ? lastError.details : '未知错误'
+    });
+  });
+}
+
+// 尝试单个API调用
+async function tryApiCall(selectedText, defaultLanguage, config) {
+  const { apiUrl, apiKey, modelName, name } = config;
+
+  if (!apiUrl || !apiKey || !modelName) {
+    return { 
+      success: false, 
+      error: '配置信息不完整', 
+      details: `配置 "${name}" 缺少必要信息` 
+    };
+  }
+
+  if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
+    return { 
+      success: false, 
+      error: 'API URL格式无效', 
+      details: `配置 "${name}" 的URL格式无效` 
+    };
+  }
+
+  const requestBody = {
+    model: modelName,
+    messages: [
+      {
+        role: "user",
+        content: `Translate the following text into ${defaultLanguage}: '${selectedText}'`
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(15000) // 15秒超时
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return { 
+        success: false, 
+        error: 'API请求失败', 
+        details: `配置 "${name}" 返回状态 ${response.status}: ${errorBody}` 
+      };
+    }
+
+    const data = await response.json();
+    
+    // 解析API响应
+    let translatedText = '';
+    if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
+      translatedText = data.choices[0].message.content.trim();
+    } else if (data.translatedText) {
+      translatedText = data.translatedText;
+    } else if (data.translations && Array.isArray(data.translations) && data.translations.length > 0 && data.translations[0].text) {
+      translatedText = data.translations[0].text;
+    } else {
+      return { 
+        success: false, 
+        error: '响应格式错误', 
+        details: `配置 "${name}" 的响应中未找到翻译文本` 
+      };
+    }
+    
+    return { 
+      success: true, 
+      translatedText: translatedText 
     };
 
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + apiKey
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        let errorDetails = `状态码: ${response.status}. `;
-        try {
-          const errorBody = await response.text();
-          errorDetails += `响应内容: ${errorBody}`;
-        } catch (e) {
-          errorDetails += '无法获取API错误详情';
-        }
-        callback({ error: 'API请求失败', details: errorDetails });
-        return;
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        callback({ error: '无法解析API响应为JSON', details: e.message });
-        return;
-      }
-      
-      // 解析API响应，支持多种格式
-      let translatedText = '';
-      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-        translatedText = data.choices[0].message.content.trim();
-      } else if (data.translatedText) {
-        translatedText = data.translatedText;
-      } else if (data.translations && Array.isArray(data.translations) && data.translations.length > 0 && data.translations[0].text) {
-        translatedText = data.translations[0].text;
-      } else {
-        callback({ error: '未在API响应中找到翻译文本，请检查响应结构', details: JSON.stringify(data) });
-        return;
-      }
-      
-      // 向页面发送翻译结果
-      callback({ 
-        translatedText: translatedText,
-        configName: name // 返回使用的配置名称
-      });
-
-    } catch (error) {
-      
-      callback({ error: '网络错误或API端点不可访问', details: error.message });
+  } catch (error) {
+    if (error.name === 'TimeoutError') {
+      return { 
+        success: false, 
+        error: 'API请求超时', 
+        details: `配置 "${name}" 请求超时（15秒）` 
+      };
     }
-  });
+    
+    return { 
+      success: false, 
+      error: '网络错误', 
+      details: `配置 "${name}" 网络错误: ${error.message}` 
+    };
+  }
 }
 
 // Listener for context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "translateSelection" && info.selectionText && tab) {
-    performTranslation(info.selectionText, (result) => { 
-      if (tab.id) {
+  if (info.menuItemId === "translateSelection" && info.selectionText && tab && tab.id) {
+    // 执行翻译
+    performTranslation(info.selectionText, (result) => {
+      // 动态注入content script并发送翻译结果
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content_script.js']
+      }, () => {
+        if (chrome.runtime.lastError) {
+          console.error("脚本注入失败:", chrome.runtime.lastError.message);
+          return;
+        }
+        
+        // 注入成功后发送翻译结果
         const messagePayload = { action: "displayTranslation", ...result };
         chrome.tabs.sendMessage(tab.id, messagePayload, (response) => {
           if (chrome.runtime.lastError) {
-            console.warn("无法向标签页发送消息:", tab.id, chrome.runtime.lastError.message);
+            console.warn("向标签页发送消息时出错:", chrome.runtime.lastError.message);
           }
         });
-      } else {
-        console.warn("在无ID的标签页上点击了上下文菜单:", tab);
-      }
+      });
     });
   } else if (info.menuItemId === "broodmother_parse" && tab && tab.id) {
     chrome.sidePanel.open({ tabId: tab.id });
