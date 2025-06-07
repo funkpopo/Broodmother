@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let renderTimer = null;
   let userHasScrolled = false;
   let lastScrollTop = 0;
+  let currentResponseId = null;
 
   let tabId = null;
   let naturalWidth = 0;
@@ -259,17 +260,73 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 建立流式端口连接
-  streamPort = chrome.runtime.connect({ name: "stream" });
-  streamPort.onMessage.addListener((message) => {
-    if (message.action === "streamUpdate") {
-      handleStreamUpdate(message.chunk, message.fullContent, message.isComplete);
-    }
-  });
-  
-  streamPort.onDisconnect.addListener(() => {
+  resetStreamConnection();
+
+  // 重置流式连接的函数
+  function resetStreamConnection() {
+    console.log('重置流式连接...');
     
-    streamPort = null;
-  });
+    // 安全断开现有连接
+    if (streamPort) {
+      try {
+        streamPort.disconnect();
+      } catch (error) {
+        console.warn('断开流式连接时出错:', error);
+      }
+      streamPort = null;
+    }
+    
+    // 重新建立连接
+    try {
+      streamPort = chrome.runtime.connect({ name: "stream" });
+      
+      // 重新绑定消息监听器
+      streamPort.onMessage.addListener((message) => {
+        if (message.action === "streamUpdate") {
+          console.log('收到流式更新:', {
+            chunkLength: message.chunk?.length || 0,
+            fullContentLength: message.fullContent?.length || 0,
+            isComplete: message.isComplete,
+            responseId: message.responseId,
+            currentResponseId: currentResponseId,
+            isStreamingActive: isStreamingActive
+          });
+          
+          // 首先检查流式状态
+          if (!isStreamingActive) {
+            console.warn('流式状态未激活，忽略消息');
+            return;
+          }
+          
+          // 检查响应ID是否匹配当前分析
+          if (message.responseId && currentResponseId && message.responseId !== currentResponseId) {
+            console.warn(`收到过期的流式消息 (responseId: ${message.responseId}, 当前: ${currentResponseId})，已忽略`);
+            return;
+          }
+          
+          // 检查DOM元素是否存在
+          const streamContentDiv = document.getElementById('stream-content');
+          if (!streamContentDiv) {
+            console.warn('流式内容容器不存在，可能分析已重置');
+            return;
+          }
+          
+          // 处理流式更新
+          handleStreamUpdate(message.chunk, message.fullContent, message.isComplete, message.responseId);
+        }
+      });
+      
+      streamPort.onDisconnect.addListener(() => {
+        console.log('流式端口连接断开');
+        streamPort = null;
+      });
+      
+      console.log('流式连接重置完成');
+    } catch (error) {
+      console.error('重新建立流式连接失败:', error);
+      streamPort = null;
+    }
+  }
 
   function showOverlay(message) {
     const overlayContent = thumbnailOverlay.querySelector('.overlay-content p');
@@ -1109,11 +1166,35 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function performAnalysis(isSelection) {
-    // 重置流式状态
+    // 完全重置所有状态，避免前一次分析的影响
+    console.log('开始新的分析，重置所有状态...');
+    
+    // 1. 停止任何进行中的流式传输
     isStreamingActive = false;
     streamBuffer = '';
+    userHasScrolled = false;
+    lastScrollTop = 0;
+    currentResponseId = null;
     
-    // 创建优化的流式界面
+    // 2. 清理定时器
+    if (renderTimer) {
+      cancelAnimationFrame(renderTimer);
+      renderTimer = null;
+    }
+    
+    // 3. 重置流式连接
+    resetStreamConnection();
+    
+    // 4. 完全清空分析结果容器
+    analysisResultDiv.innerHTML = '';
+    
+    // 5. 强制重绘，确保UI立即更新
+    analysisResultDiv.offsetHeight; // 触发重排
+    
+    // 6. 隐藏返回底部按钮
+    hideBackToBottomButton();
+    
+    // 7. 创建全新的流式界面
     const loadingMessage = isSelection ? getText('analysis_in_progress') + " (" + getText('analyze_selection') + ")" : getText('analysis_in_progress') + " (" + getText('analyze_page') + ")";
     analysisResultDiv.innerHTML = `
       <div class="streaming-container">
@@ -1126,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
     
-    // 获取取消按钮引用
+    // 8. 获取取消按钮引用并绑定新的事件处理器
     cancelStreamButton = document.getElementById('cancel-stream');
     
     const message = {
@@ -1141,25 +1222,60 @@ document.addEventListener('DOMContentLoaded', () => {
       message.selectionRatios = currentSelectionRatios;
     }
     
+    // 立即激活流式状态，等待接收消息
+    isStreamingActive = true;
+    console.log('流式状态已激活，等待分析结果...');
+    
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
+        // 出错时重置状态
+        isStreamingActive = false;
         analysisResultDiv.innerHTML = `<div class="error-message">${getText('analysis_failed')}: ${chrome.runtime.lastError.message}</div>`;
         return;
       }
       
       if (response && response.success) {
         if (response.isStreaming && response.streamStart) {
-          // 开始流式输出
-          isStreamingActive = true;
+          // 确认流式输出已开始，设置当前响应ID
+          currentResponseId = response.responseId;
+          console.log('后台确认流式输出已开始，响应ID:', currentResponseId);
           streamBuffer = '';
           
-          // 显示取消按钮
+          // 显示取消按钮并绑定事件处理器
           if (cancelStreamButton) {
             cancelStreamButton.style.display = 'inline-block';
+            
+            // 清理旧的事件监听器（如果存在）
+            cancelStreamButton.onclick = null;
+            
+            // 绑定新的取消事件处理器
             cancelStreamButton.onclick = () => {
+              console.log('用户取消分析');
+              
+              // 1. 立即停用流式状态
               isStreamingActive = false;
               
-              // 保留已显示的内容，添加中断标识
+              // 2. 通知后端中断当前流式响应
+              if (currentResponseId) {
+                chrome.runtime.sendMessage({
+                  action: "cancelAnalysis",
+                  responseId: currentResponseId
+                }, (response) => {
+                  if (chrome.runtime.lastError) {
+                    console.warn('通知后端取消分析失败:', chrome.runtime.lastError.message);
+                  } else {
+                    console.log('已通知后端取消分析:', response);
+                  }
+                });
+              }
+              
+              // 3. 清理定时器
+              if (renderTimer) {
+                cancelAnimationFrame(renderTimer);
+                renderTimer = null;
+              }
+              
+              // 4. 保留已显示的内容，添加中断标识
               const streamContentDiv = document.getElementById('stream-content');
               if (streamContentDiv && streamBuffer) {
                 // 先渲染已有的Markdown内容
@@ -1169,15 +1285,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 analysisResultDiv.innerHTML = `<div class="info-message">${getText('analysis_cancelled')}</div>`;
               }
               
-              // 隐藏取消按钮和加载状态
+              // 5. 隐藏取消按钮和加载状态
               cancelStreamButton.style.display = 'none';
               const loadingDiv = analysisResultDiv.querySelector('.loading-message');
               if (loadingDiv) {
                 loadingDiv.style.display = 'none';
               }
               
-              // 隐藏返回底部按钮
+              // 6. 隐藏返回底部按钮
               hideBackToBottomButton();
+              
+              // 7. 重置状态
+              streamBuffer = '';
+              userHasScrolled = false;
+              lastScrollTop = 0;
+              currentResponseId = null;
+              
+              console.log('分析取消完成');
             };
           }
           
@@ -1199,12 +1323,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 防抖渲染函数
-  function debouncedRender(content, targetElement, isComplete = false) {
+  function debouncedRender(content, targetElement, isComplete = false, responseId = null) {
     if (renderTimer) {
       cancelAnimationFrame(renderTimer);
     }
     
     renderTimer = requestAnimationFrame(() => {
+      // 验证响应ID，防止渲染过期内容
+      if (responseId && currentResponseId && responseId !== currentResponseId) {
+        console.warn(`跳过过期渲染 (responseId: ${responseId}, 当前: ${currentResponseId})`);
+        return;
+      }
+      
+      // 再次检查流式状态
+      if (!isStreamingActive) {
+        console.warn('流式状态已停用，跳过渲染');
+        return;
+      }
+      
       renderMarkdownContent(content, targetElement);
       
       // 智能滚动到底部
@@ -1267,7 +1403,16 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 完成流式渲染
   function completeStreamRendering() {
+    console.log('完成流式渲染，开始清理...');
+    
+    // 彻底停用流式状态
     isStreamingActive = false;
+    
+    // 清理定时器
+    if (renderTimer) {
+      cancelAnimationFrame(renderTimer);
+      renderTimer = null;
+    }
     
     // 隐藏加载消息和取消按钮
     const loadingDiv = analysisResultDiv.querySelector('.loading-message');
@@ -1277,34 +1422,58 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (cancelStreamButton) {
       cancelStreamButton.style.display = 'none';
+      // 清理事件监听器
+      cancelStreamButton.onclick = null;
+      cancelStreamButton = null;
     }
     
     // 隐藏返回底部按钮
     hideBackToBottomButton();
     
     // 最终渲染完整内容，清理流式容器
-    renderMarkdownContent(streamBuffer);
+    if (streamBuffer) {
+      renderMarkdownContent(streamBuffer);
+    }
     
-    // 重置用户滚动状态
+    // 重置所有相关状态
+    streamBuffer = '';
     userHasScrolled = false;
+    lastScrollTop = 0;
+    currentResponseId = null;
+    
+    console.log('流式渲染清理完成');
   }
 
   // 处理流式更新
-  function handleStreamUpdate(chunk, fullContent, isComplete) {
+  function handleStreamUpdate(chunk, fullContent, isComplete, responseId = null) {
+    console.log('处理流式更新:', {
+      chunkLength: chunk?.length || 0,
+      fullContentLength: fullContent?.length || 0,
+      isComplete,
+      responseId,
+      currentResponseId,
+      isStreamingActive,
+      hasStreamContentDiv: !!document.getElementById('stream-content')
+    });
     
-    
+    // 严格的状态检查，防止过期消息处理
     if (!isStreamingActive) {
-      
-      return; // 如果流已被取消，忽略更新
+      console.warn('流式状态未激活，忽略更新');
+      return;
     }
     
-    streamBuffer = fullContent;
-    
+    // 检查DOM元素是否存在
     const streamContentDiv = document.getElementById('stream-content');
-    if (streamContentDiv) {
-      // 使用防抖渲染
-      debouncedRender(streamBuffer, streamContentDiv, isComplete);
+    if (!streamContentDiv) {
+      console.warn('流式内容容器不存在，可能已被清理');
+      return;
     }
+    
+    // 更新缓冲区
+    streamBuffer = fullContent || '';
+    
+    // 使用防抖渲染，传递响应ID
+    debouncedRender(streamBuffer, streamContentDiv, isComplete, responseId || currentResponseId);
   }
   
   // 渲染Markdown内容

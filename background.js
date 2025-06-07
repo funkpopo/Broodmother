@@ -323,6 +323,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // 处理文字提取和AI分析请求
     handleExtractAndAnalyze(request, sender, sendResponse);
     return true; // 异步响应
+  } else if (request.action === "cancelAnalysis") {
+    // 处理取消分析请求
+    handleCancelAnalysis(request, sender, sendResponse);
+    return true; // 异步响应
   } else if (request.action === "getCurrentTab") {
     // 获取当前活动标签页信息
     if (currentActiveTab) {
@@ -359,6 +363,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   return true;
 });
+
+// 处理取消分析请求
+async function handleCancelAnalysis(request, sender, sendResponse) {
+  const responseId = request.responseId;
+  console.log('收到取消分析请求，responseId:', responseId);
+  
+  // 检查是否有正在进行的流式响应
+  if (currentStreamController && streamResponseId === responseId) {
+    console.log('中断进行中的流式响应');
+    currentStreamController.abort();
+    currentStreamController = null;
+    
+    sendResponse({ 
+      success: true, 
+      message: '分析已取消' 
+    });
+  } else {
+    console.log('没有找到匹配的流式响应，可能已完成或被中断');
+    sendResponse({ 
+      success: true, 
+      message: '分析已取消（或已完成）' 
+    });
+  }
+}
 
 // 处理文字提取和AI分析
 async function handleExtractAndAnalyze(request, sender, sendResponse) {
@@ -586,9 +614,22 @@ ${text}
         return;
       }
 
-      // 处理流式响应
+      // 中断任何进行中的流式响应
+      if (currentStreamController) {
+        console.log('中断进行中的流式响应');
+        currentStreamController.abort();
+        currentStreamController = null;
+      }
       
-      await handleStreamResponse(response, sendResponse, isSelection);
+      // 生成新的响应ID
+      const responseId = ++streamResponseId;
+      console.log('开始新的流式响应，ID:', responseId);
+      
+      // 创建新的控制器
+      currentStreamController = new AbortController();
+      
+      // 处理流式响应
+      await handleStreamResponse(response, sendResponse, isSelection, responseId, currentStreamController);
 
     } catch (error) {
       
@@ -603,38 +644,68 @@ ${text}
 // 全局流式端口存储
 let streamPort = null;
 
+// 流式响应控制器
+let currentStreamController = null;
+let streamResponseId = 0;
+
 // 处理端口连接
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === "stream") {
-    streamPort = port;
+    // 如果已有连接，先清理旧连接
+    if (streamPort) {
+      console.log('清理旧的流式端口连接');
+      try {
+        streamPort.disconnect();
+      } catch (error) {
+        console.warn('断开旧连接时出错:', error);
+      }
+    }
     
+    streamPort = port;
+    console.log('建立新的流式端口连接');
     
     port.onDisconnect.addListener(() => {
+      console.log('流式端口连接断开 (background)');
       streamPort = null;
-      
     });
   }
 });
 
 // 处理流式响应
-async function handleStreamResponse(response, sendResponse, isSelection) {
+async function handleStreamResponse(response, sendResponse, isSelection, responseId, controller) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let fullContent = '';
   
   try {
+    console.log(`流式响应 ${responseId} 开始处理`);
+    
     // 发送开始信号
     sendResponse({ 
       success: true, 
       isStreaming: true, 
-      streamStart: true 
+      streamStart: true,
+      responseId: responseId
     });
 
     while (true) {
+      // 检查是否被中断
+      if (controller.signal.aborted) {
+        console.log(`流式响应 ${responseId} 被中断`);
+        break;
+      }
+      
       const { done, value } = await reader.read();
       
       if (done) {
+        console.log(`流式响应 ${responseId} 完成`);
+        break;
+      }
+
+      // 再次检查是否被中断
+      if (controller.signal.aborted) {
+        console.log(`流式响应 ${responseId} 在处理数据时被中断`);
         break;
       }
 
@@ -645,6 +716,12 @@ async function handleStreamResponse(response, sendResponse, isSelection) {
       buffer = lines.pop() || '';
       
       for (const line of lines) {
+        // 在处理每行前检查中断
+        if (controller.signal.aborted) {
+          console.log(`流式响应 ${responseId} 在解析行时被中断`);
+          return;
+        }
+        
         if (line.trim() === '') continue;
         if (line.trim() === 'data: [DONE]') continue;
         
@@ -658,17 +735,17 @@ async function handleStreamResponse(response, sendResponse, isSelection) {
               if (content) {
                 fullContent += content;
                 
-                
-                // 通过端口发送增量内容
-                if (streamPort) {
+                // 通过端口发送增量内容，包含响应ID
+                if (streamPort && !controller.signal.aborted) {
                   streamPort.postMessage({
                     action: "streamUpdate",
                     chunk: content,
                     fullContent: fullContent,
-                    isComplete: false
+                    isComplete: false,
+                    responseId: responseId
                   });
                   
-                } else {
+                } else if (!streamPort) {
                   console.warn("流式端口未连接");
                 }
               }
@@ -680,24 +757,35 @@ async function handleStreamResponse(response, sendResponse, isSelection) {
       }
     }
     
-    // 发送完成信号
-    if (streamPort) {
+    // 发送完成信号（只有未被中断的情况下）
+    if (streamPort && !controller.signal.aborted) {
       streamPort.postMessage({
         action: "streamUpdate",
         chunk: '',
         fullContent: fullContent,
-        isComplete: true
+        isComplete: true,
+        responseId: responseId
       });
+      console.log(`流式响应 ${responseId} 发送完成信号`);
     }
     
   } catch (error) {
-    
-    sendResponse({ 
-      success: false, 
-      error: '处理流式响应时出错: ' + error.message 
-    });
+    if (controller.signal.aborted) {
+      console.log(`流式响应 ${responseId} 被中断:`, error.name);
+    } else {
+      console.error(`流式响应 ${responseId} 出错:`, error);
+      sendResponse({ 
+        success: false, 
+        error: '处理流式响应时出错: ' + error.message 
+      });
+    }
   } finally {
     reader.releaseLock();
+    // 如果这是当前活动的响应，清理控制器
+    if (currentStreamController === controller) {
+      currentStreamController = null;
+    }
+    console.log(`流式响应 ${responseId} 清理完成`);
   }
 }
 
