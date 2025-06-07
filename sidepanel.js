@@ -91,8 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   analyzeSelectionButton.disabled = true;
 
-  let refreshInterval = null;
-
   // 选择框交互状态
   let currentSelectionRatios = null; // 存储相对于缩略图的比例 {x, y, width, height}
   let isDragging = false;
@@ -126,22 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 初始化
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs && tabs.length > 0 && tabs[0].id) {
-      tabId = tabs[0].id;
-      currentTabUrl = tabs[0].url;
-      requestThumbnail();
-      
-      // 启动自动刷新机制
-      startAutoRefresh();
-    } else {
-      
-      analysisResultDiv.innerHTML = `<div class="error-message">${getText('cannot_get_tab_info')}</div>`;
-      analyzePageButton.disabled = true;
-      analyzeSelectionButton.disabled = true; 
-    }
-  });
+  // 初始化 - 从background获取当前标签页信息
+  initializeCurrentTab();
 
   // 监听窗口尺寸变化
   window.addEventListener('resize', () => {
@@ -151,58 +135,127 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 启动自动刷新
-  function startAutoRefresh() {
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-    }
-    
-    refreshInterval = setInterval(() => {
-      // 只在页面可见时刷新
-      if (document.hidden) {
-        
+  // 初始化当前标签页信息
+  function initializeCurrentTab() {
+    console.log('开始初始化当前标签页信息...');
+    chrome.runtime.sendMessage({ action: "getCurrentTab" }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('获取当前标签页失败:', chrome.runtime.lastError);
+        showError();
         return;
       }
       
-      // 检查当前活动标签页
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs && tabs.length > 0 && tabs[0].id) {
-          const newTabId = tabs[0].id;
-          const newTabUrl = tabs[0].url;
-          
-          if (newTabId !== tabId) {
-            
-            tabId = newTabId;
-            currentTabUrl = newTabUrl;
-            clearThumbnail();
-            errorCount = 0;
-          } else if (newTabUrl !== currentTabUrl) {
-            
-            currentTabUrl = newTabUrl;
-            clearThumbnail();
-            errorCount = 0;
-          }
-          
-          // 自动尝试截图
-          if (errorCount < maxErrorCount) {
-            requestThumbnail();
-          }
-        }
-      });
-    }, 500);
+      console.log('收到标签页信息响应:', response);
+      
+      if (response && response.success && response.tabInfo) {
+        console.log('成功获取标签页信息，开始更新:', response.tabInfo);
+        updateTabInfo(response.tabInfo);
+      } else {
+        console.error('无法获取标签页信息:', response);
+        showError();
+      }
+    });
   }
 
-  // 停止自动刷新
-  function stopAutoRefresh() {
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-      refreshInterval = null;
+  // 更新标签页信息
+  function updateTabInfo(tabInfo) {
+    const newTabId = tabInfo.id;
+    const newTabUrl = tabInfo.url;
+    
+    // 检查是否为受限页面
+    if (tabInfo.isRestricted) {
+      showRestrictedPageError(newTabUrl);
+      return;
+    }
+    
+    // 重新启用按钮（如果之前被禁用）
+    analyzePageButton.disabled = false;
+    
+    if (newTabId !== tabId || !tabId) {
+      console.log('标签页切换:', { from: tabId, to: newTabId });
+      tabId = newTabId;
+      currentTabUrl = newTabUrl;
+      clearThumbnail();
+      errorCount = 0;
+      requestThumbnail();
+      // 重启自动刷新
+      startAutoRefresh();
+    } else if (newTabUrl !== currentTabUrl) {
+      console.log('标签页URL变化:', { from: currentTabUrl, to: newTabUrl });
+      currentTabUrl = newTabUrl;
+      clearThumbnail();
+      errorCount = 0;
+      requestThumbnail();
+      // 重启自动刷新
+      startAutoRefresh();
+    } else {
+      // 即使标签页和URL都没变，如果当前没有缩略图，也要请求
+      if (!thumbnailImage.src) {
+        console.log('缩略图缺失，重新请求截图');
+        requestThumbnail();
+      }
     }
   }
 
+  // 显示受限页面错误
+  function showRestrictedPageError(url) {
+    const currentLang = i18n.getCurrentLanguage();
+    const restrictedMessage = currentLang === 'zh' ? 
+      '当前页面为浏览器系统页面，插件无法访问。请切换到普通网页使用。' : 
+      'Current page is a browser system page, extension cannot access it. Please switch to a regular webpage.';
+    
+    analysisResultDiv.innerHTML = `<div class="error-message">${restrictedMessage}</div>`;
+    showOverlay(restrictedMessage);
+    analyzePageButton.disabled = true;
+    analyzeSelectionButton.disabled = true;
+    clearThumbnail();
+  }
+
+  // 显示错误状态
+  function showError() {
+    const currentLang = i18n && i18n.getCurrentLanguage ? i18n.getCurrentLanguage() : 'zh';
+    const errorMessage = currentLang === 'zh' ? 
+      '无法获取当前标签页信息' : 
+      'Cannot get current tab information';
+    
+    analysisResultDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+    analyzePageButton.disabled = true;
+    analyzeSelectionButton.disabled = true;
+  }
+
+  // 监听来自background的标签页变化通知
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "tabChanged" && message.tabInfo) {
+      console.log('收到标签页变化通知:', message.tabInfo);
+      updateTabInfo(message.tabInfo);
+    }
+  });
+
+  // 页面预览自动刷新机制
+  let autoRefreshInterval = null;
+  
+  function startAutoRefresh() {
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+    }
+    
+    autoRefreshInterval = setInterval(() => {
+      // 只在页面可见且有有效tabId时才刷新
+      if (!document.hidden && tabId && errorCount < maxErrorCount) {
+        console.log('自动刷新页面预览');
+        requestThumbnail();
+      }
+    }, 1000); // 1秒刷新一次
+  }
+
+  // 启动自动刷新
+  startAutoRefresh();
+
   // 页面卸载时清理
   window.addEventListener('beforeunload', () => {
-    stopAutoRefresh();
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+    }
   });
 
   // 建立流式端口连接
@@ -246,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     const now = Date.now();
-    const minInterval = 500;
+    const minInterval = 200; // 减少到200ms，提高响应速度
     if (now - lastCaptureTime < minInterval) {
       
       return;

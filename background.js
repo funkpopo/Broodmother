@@ -20,6 +20,85 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// 标签页状态管理
+let currentActiveTab = null;
+
+// 监听标签页激活事件
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    currentActiveTab = {
+      id: tab.id,
+      url: tab.url,
+      title: tab.title,
+      status: tab.status
+    };
+    
+    console.log('标签页激活:', currentActiveTab);
+    
+    // 通知sidepanel标签页已切换
+    notifySidepanelTabChange(currentActiveTab);
+  } catch (error) {
+    console.error('获取激活标签页信息失败:', error);
+  }
+});
+
+// 监听标签页更新事件（URL变化、加载状态等）
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // 只关注当前活动标签页的更新
+  if (currentActiveTab && tabId === currentActiveTab.id) {
+    // 检查是否有重要变化
+    if (changeInfo.url || changeInfo.status === 'complete') {
+      currentActiveTab = {
+        id: tab.id,
+        url: tab.url,
+        title: tab.title,
+        status: tab.status
+      };
+      
+      console.log('标签页更新:', currentActiveTab, changeInfo);
+      
+      // 通知sidepanel标签页已更新
+      notifySidepanelTabChange(currentActiveTab, changeInfo);
+    }
+  }
+});
+
+// 通知sidepanel标签页变化
+function notifySidepanelTabChange(tabInfo, changeInfo = null) {
+  // 检查是否为受限页面
+  if (isRestrictedUrl(tabInfo.url)) {
+    tabInfo.isRestricted = true;
+    console.log('检测到受限页面:', tabInfo.url);
+  }
+  
+  // 尝试向所有可能的sidepanel发送消息
+  chrome.runtime.sendMessage({
+    action: "tabChanged",
+    tabInfo: tabInfo,
+    changeInfo: changeInfo
+  }).catch(error => {
+    // 如果没有监听器，忽略错误（sidepanel可能未打开）
+    console.log('Sidepanel未监听标签页变化事件:', error);
+  });
+}
+
+// 检查是否为受限URL
+function isRestrictedUrl(url) {
+  if (!url) return true;
+  
+  const restrictedPatterns = [
+    /^chrome:\/\//,
+    /^chrome-extension:\/\//,
+    /^edge:\/\//,
+    /^about:/,
+    /^moz-extension:\/\//,
+    /^file:\/\//
+  ];
+  
+  return restrictedPatterns.some(pattern => pattern.test(url));
+}
+
 // Reusable function to perform translation with failover support
 async function performTranslation(selectedText, callback) {
   // 获取配置和故障转移设置
@@ -244,6 +323,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // 处理文字提取和AI分析请求
     handleExtractAndAnalyze(request, sender, sendResponse);
     return true; // 异步响应
+  } else if (request.action === "getCurrentTab") {
+    // 获取当前活动标签页信息
+    if (currentActiveTab) {
+      // 检查是否为受限页面
+      if (isRestrictedUrl(currentActiveTab.url)) {
+        currentActiveTab.isRestricted = true;
+      }
+      sendResponse({ success: true, tabInfo: currentActiveTab });
+    } else {
+      // 如果没有缓存的标签页信息，实时查询
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs && tabs.length > 0) {
+          const tab = tabs[0];
+          currentActiveTab = {
+            id: tab.id,
+            url: tab.url,
+            title: tab.title,
+            status: tab.status
+          };
+          
+          // 检查是否为受限页面
+          if (isRestrictedUrl(currentActiveTab.url)) {
+            currentActiveTab.isRestricted = true;
+          }
+          
+          sendResponse({ success: true, tabInfo: currentActiveTab });
+        } else {
+          sendResponse({ success: false, error: "无法获取当前标签页" });
+        }
+      });
+      return true; // 异步响应
+    }
   }
   
   return true;

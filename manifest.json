@@ -9,8 +9,17 @@
     "scripting",
     "storage",
     "contextMenus",
-    "sidePanel",
+    "sidePanel"
+  ],
+  "host_permissions": [
     "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"],
+      "run_at": "document_idle"
+    }
   ],
   "action": {
     "default_popup": "popup.html"
