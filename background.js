@@ -49,11 +49,11 @@ async function performTranslation(selectedText, callback) {
     const { apiUrl, apiKey, modelName, name } = currentConfig;
 
     // 日志记录
-    console.log('使用配置:', name);
-    console.log('API URL:', apiUrl);
-    console.log('API Key (前5字符):', apiKey ? apiKey.substring(0, 5) + '...' : '未设置');
-    console.log('模型名称:', modelName);
-    console.log('目标语言:', defaultLanguage);
+    
+    
+    
+    
+    
 
     if (!apiUrl || !apiKey || !modelName) {
       callback({ error: '配置信息不完整，请检查API URL、API Key和模型名称' });
@@ -126,7 +126,7 @@ async function performTranslation(selectedText, callback) {
       });
 
     } catch (error) {
-      console.error('API调用失败:', error);
+      
       callback({ error: '网络错误或API端点不可访问', details: error.message });
     }
   });
@@ -154,22 +154,22 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // Listener for messages from content script or sidepanel
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("背景脚本收到消息:", request);
+  
   
   // 处理配置变更通知
   if (request.action === "configChanged") {
-    console.log("配置已更新");
+    
   } else if (request.action === "captureTab") {
     chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
       if (chrome.runtime.lastError) {
-        console.error("截图失败:", chrome.runtime.lastError.message);
+        
         sendResponse({ error: "截图失败", details: chrome.runtime.lastError.message });
         return;
       }
       if (dataUrl) {
         sendResponse({ dataUrl: dataUrl });
       } else {
-        console.error("截图成功但未返回dataUrl");
+        
         sendResponse({ error: "截图成功但未返回dataUrl" });
       }
     });
@@ -199,7 +199,7 @@ async function handleExtractAndAnalyze(request, sender, sendResponse) {
     try {
       await ensureContentScriptLoaded(tabId);
     } catch (error) {
-      console.error("内容脚本加载失败:", error);
+      
       sendResponse({ 
         success: false, 
         error: "内容脚本加载失败，请刷新页面后重试" 
@@ -224,7 +224,7 @@ async function handleExtractAndAnalyze(request, sender, sendResponse) {
     
     chrome.tabs.sendMessage(tabId, extractMessage, async (extractResponse) => {
       if (chrome.runtime.lastError) {
-        console.error("文字提取失败:", chrome.runtime.lastError.message);
+        
         sendResponse({ 
           success: false, 
           error: "文字提取失败: " + chrome.runtime.lastError.message 
@@ -254,7 +254,7 @@ async function handleExtractAndAnalyze(request, sender, sendResponse) {
     });
     
   } catch (error) {
-    console.error("处理提取和分析请求时出错:", error);
+    
     sendResponse({ 
       success: false, 
       error: "处理请求时出错: " + error.message 
@@ -410,11 +410,11 @@ ${text}
       }
 
       // 处理流式响应
-      console.log("开始处理流式响应");
+      
       await handleStreamResponse(response, sendResponse, isSelection);
 
     } catch (error) {
-      console.error('AI API调用失败:', error);
+      
       sendResponse({ 
         success: false, 
         error: '网络错误或API端点不可访问: ' + error.message 
@@ -430,11 +430,11 @@ let streamPort = null;
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === "stream") {
     streamPort = port;
-    console.log("流式端口已连接");
+    
     
     port.onDisconnect.addListener(() => {
       streamPort = null;
-      console.log("流式端口已断开");
+      
     });
   }
 });
@@ -480,7 +480,7 @@ async function handleStreamResponse(response, sendResponse, isSelection) {
               const content = data.choices[0].delta.content;
               if (content) {
                 fullContent += content;
-                console.log("收到流式数据块:", content);
+                
                 
                 // 通过端口发送增量内容
                 if (streamPort) {
@@ -490,7 +490,7 @@ async function handleStreamResponse(response, sendResponse, isSelection) {
                     fullContent: fullContent,
                     isComplete: false
                   });
-                  console.log("已发送流式数据到前端");
+                  
                 } else {
                   console.warn("流式端口未连接");
                 }
@@ -514,7 +514,7 @@ async function handleStreamResponse(response, sendResponse, isSelection) {
     }
     
   } catch (error) {
-    console.error('处理流式响应时出错:', error);
+    
     sendResponse({ 
       success: false, 
       error: '处理流式响应时出错: ' + error.message 

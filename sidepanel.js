@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!isAtBottom && Math.abs(currentScrollTop - lastScrollTop) > 5) {
         userHasScrolled = true;
         showBackToBottomButton();
-        console.log("检测到用户手动滚动");
+        
       } else if (isAtBottom) {
         userHasScrolled = false;
         hideBackToBottomButton();
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // 启动自动刷新机制
       startAutoRefresh();
     } else {
-      console.error("Could not get active tab ID for sidepanel.");
+      
       analysisResultDiv.innerHTML = `<div class="error-message">${getText('cannot_get_tab_info')}</div>`;
       analyzePageButton.disabled = true;
       analyzeSelectionButton.disabled = true; 
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshInterval = setInterval(() => {
       // 只在页面可见时刷新
       if (document.hidden) {
-        console.log("Page hidden, skipping thumbnail refresh");
+        
         return;
       }
       
@@ -171,13 +171,13 @@ document.addEventListener('DOMContentLoaded', () => {
           const newTabUrl = tabs[0].url;
           
           if (newTabId !== tabId) {
-            console.log("Active tab changed from", tabId, "to", newTabId);
+            
             tabId = newTabId;
             currentTabUrl = newTabUrl;
             clearThumbnail();
             errorCount = 0;
           } else if (newTabUrl !== currentTabUrl) {
-            console.log("URL changed from", currentTabUrl, "to", newTabUrl);
+            
             currentTabUrl = newTabUrl;
             clearThumbnail();
             errorCount = 0;
@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   streamPort.onDisconnect.addListener(() => {
-    console.log("流式端口连接已断开");
+    
     streamPort = null;
   });
 
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const now = Date.now();
     const minInterval = 500;
     if (now - lastCaptureTime < minInterval) {
-      console.log("Throttling screenshot request, too frequent");
+      
       return;
     }
     lastCaptureTime = now;
@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     chrome.runtime.sendMessage({ action: "captureTab" }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error("Error sending captureTab message:", chrome.runtime.lastError.message);
+        
         errorCount++;
         if (errorCount >= maxErrorCount) {
           showOverlay("截图服务暂时不可用，将继续自动重试");
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
           naturalHeight = thumbnailImage.naturalHeight;
           displayWidth = thumbnailImage.offsetWidth;
           displayHeight = thumbnailImage.offsetHeight;
-          console.log(`Thumbnail loaded: Nat(${naturalWidth}x${naturalHeight}), Disp(${displayWidth}x${displayHeight})`);
+          
           
           hideOverlay();
           updateSelectionDisplay();
@@ -287,12 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         };
         thumbnailImage.onerror = () => {
-          console.error("Failed to load thumbnail image from data URL.");
+          
           errorCount++;
           showOverlay("无法加载页面缩略图，自动重试中...");
         };
       } else if (response && response.error) {
-        console.error("Error capturing tab:", response.details);
+        
         errorCount++;
         if (errorCount >= maxErrorCount) {
           showOverlay("截图功能暂时不可用，将继续自动重试");
@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showOverlay("正在重试获取截图...");
         }
       } else {
-        console.error("Invalid response when capturing tab:", response);
+        
         errorCount++;
         if (errorCount >= maxErrorCount) {
           showOverlay("截图服务异常，将继续自动重试");
@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectionBox.style.height = height + 'px';
     selectionBox.style.display = 'block';
     
-    console.log(`Selection updated: ${left},${top} ${width}x${height}`);
+    
   }
 
   // 鼠标按下事件 - 开始创建选择框或拖拽
@@ -559,7 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
       height: parseFloat(selectionBox.style.height) || 0
     };
     
-    console.log('Start drag, originalSelection:', originalSelection);
+    
   }
 
   function startResize(e, handleClass) {
@@ -579,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
       height: parseFloat(selectionBox.style.height) || 0
     };
     
-    console.log('Start resize, originalSelection:', originalSelection);
+    
   }
 
   // 鼠标移动事件
@@ -931,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function finalizeSelection() {
-    console.log('finalizeSelection called, current states:', { drawing, isDragging, isResizing, isPanning });
+    
     
     const bounds = getThumbnailBounds();
     if (!bounds) {
@@ -943,8 +943,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectionWidth = parseFloat(selectionBox.style.width) || 0;
     const selectionHeight = parseFloat(selectionBox.style.height) || 0;
 
-    console.log('Selection coordinates:', { selectionLeft, selectionTop, selectionWidth, selectionHeight });
-    console.log('Bounds:', bounds);
+    
+    
 
     // 降低最小尺寸要求，支持更小范围的选择
     const minSize = 5; // 从20px降低到5px
@@ -1006,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const areaPercent = (currentSelectionRatios.width * currentSelectionRatios.height * 100).toFixed(1);
     showSelectionFeedback(`已选择 ${Math.round(selectionWidth)}×${Math.round(selectionHeight)} 像素区域 (${areaPercent}% 页面)`, 'success');
     
-    console.log("Final selection ratios:", currentSelectionRatios);
+    
     analyzeSelectionButton.disabled = false;
   }
 
@@ -1218,10 +1218,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 处理流式更新
   function handleStreamUpdate(chunk, fullContent, isComplete) {
-    console.log("收到流式更新:", chunk.length > 20 ? chunk.substring(0, 20) + "..." : chunk, "是否完成:", isComplete);
+    
     
     if (!isStreamingActive) {
-      console.log("流式输出未激活，忽略更新");
+      
       return; // 如果流已被取消，忽略更新
     }
     
@@ -1243,7 +1243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const htmlContent = marked.parse(content);
         target.innerHTML = htmlContent;
       } catch (error) {
-        console.error('Markdown解析错误:', error);
+        
         target.innerHTML = `<div class="error-message">Markdown解析失败</div><pre>${escapeHtml(content)}</pre>`;
       }
     } else {
@@ -1324,7 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadTheme() {
     chrome.storage.sync.get(['currentTheme'], (result) => {
       if (chrome.runtime.lastError) {
-        console.error('加载主题失败:', chrome.runtime.lastError.message);
+        
         return;
       }
       

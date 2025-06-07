@@ -17,7 +17,7 @@ class I18nManager {
   // 设置当前语言
   setLanguage(lang) {
     if (!this.languages[lang]) {
-      console.error(`Language pack '${lang}' not found`);
+      
       return false;
     }
     
@@ -80,7 +80,7 @@ class I18nManager {
         localStorage.setItem('broodmother_language', this.currentLanguage);
       }
     } catch (error) {
-      console.error('Failed to save language setting:', error);
+      
       // 回退到 localStorage
       localStorage.setItem('broodmother_language', this.currentLanguage);
     }
@@ -103,7 +103,7 @@ class I18nManager {
         }
       }
     } catch (error) {
-      console.error('Failed to load language setting:', error);
+      
       // 回退到 localStorage
       const saved = localStorage.getItem('broodmother_language');
       if (saved) {
@@ -131,7 +131,7 @@ class I18nManager {
       try {
         callback(this.currentLanguage);
       } catch (error) {
-        console.error('Error in language change listener:', error);
+        
       }
     });
   }

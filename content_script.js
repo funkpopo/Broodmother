@@ -237,7 +237,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const text = extractTextFromRegion(request.selectionRatios);
         sendResponse({ success: true, text: text });
       } catch (e) {
-        console.error("Error extracting text from selection:", e);
+        
         sendResponse({ success: false, error: "提取选中区域文字失败: " + e.message });
       }
     } else {
@@ -250,7 +250,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const text = extractAllText();
       sendResponse({ success: true, text: text });
     } catch (e) {
-      console.error("Error extracting page text:", e);
+      
       sendResponse({ success: false, error: "提取页面文字失败: " + e.message });
     }
     return true;
@@ -261,7 +261,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const text = extractTextFromRegion(request.coordinates);
         sendResponse({ text: text });
       } catch (e) {
-        console.error("Error extracting text from region:", e);
+        
         sendResponse({ error: "Error extracting text from region: " + e.message });
       }
     } else {
@@ -274,7 +274,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const text = extractAllText();
       sendResponse({ text: text });
     } catch (e) {
-      console.error("Error extracting all text:", e);
+      
       sendResponse({ error: "Error extracting all text: " + e.message });
     }
     return true;

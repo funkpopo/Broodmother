@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOMContentLoaded event fired'); // 调试信息
+  
   
   // 初始化国际化支持
   initializeI18n();
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabContents = document.querySelectorAll('.tab-content');
   
   // 验证关键DOM元素是否存在
-  console.log('DOM elements found:', {
+  
     configNameInput: !!configNameInput,
     apiUrlInput: !!apiUrlInput,
     apiKeyInput: !!apiKeyInput,
@@ -58,10 +58,10 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 显示状态消息
   function showStatus(message, isError = false) {
-    console.log(`Status: ${message} (error: ${isError})`); // 调试信息
+    
     
     if (!statusArea) {
-      console.error('Status area not found!');
+      
       alert(message); // 回退到alert显示
       return;
     }
@@ -132,11 +132,11 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 添加或更新配置
   function saveConfig() {
-    console.log('saveConfig called'); // 调试信息
+    
     
     if (!configNameInput || !apiUrlInput || !apiKeyInput || !modelNameInput) {
       showStatus('表单元素未找到，请重新打开设置页面', true);
-      console.error('Form inputs not found!');
+      
       return;
     }
     
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiKey = apiKeyInput.value.trim();
     const modelName = modelNameInput.value.trim();
     
-    console.log('Form values:', { name, apiUrl: apiUrl ? 'set' : 'empty', apiKey: apiKey ? 'set' : 'empty', modelName });
+    
     
     if (!name) {
       showStatus('enter_config_name', true);
@@ -518,9 +518,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 保存配置按钮点击事件
     if (saveConfigBtn) {
       saveConfigBtn.addEventListener('click', saveConfig);
-      console.log('Save config button event listener added');
+      
     } else {
-      console.error('Save config button not found!');
+      
     }
     
     // 添加配置按钮点击事件
@@ -528,41 +528,41 @@ document.addEventListener('DOMContentLoaded', () => {
       addConfigBtn.addEventListener('click', () => {
         clearConfigForm();
       });
-      console.log('Add config button event listener added');
+      
     } else {
-      console.error('Add config button not found!');
+      
     }
     
     // 导出按钮点击事件
     if (exportBtn) {
       exportBtn.addEventListener('click', exportConfigs);
-      console.log('Export button event listener added');
+      
     } else {
-      console.error('Export button not found!');
+      
     }
     
     // 导入按钮点击事件
     if (importBtn) {
       importBtn.addEventListener('click', showImportModal);
-      console.log('Import button event listener added');
+      
     } else {
-      console.error('Import button not found!');
+      
     }
     
     // 确认导入按钮点击事件
     if (confirmImportBtn) {
       confirmImportBtn.addEventListener('click', importConfigs);
-      console.log('Confirm import button event listener added');
+      
     } else {
-      console.error('Confirm import button not found!');
+      
     }
     
     // 取消导入按钮点击事件
     if (cancelImportBtn) {
       cancelImportBtn.addEventListener('click', hideImportModal);
-      console.log('Cancel import button event listener added');
+      
     } else {
-      console.error('Cancel import button not found!');
+      
     }
     
     // 主题选项点击事件
@@ -574,9 +574,9 @@ document.addEventListener('DOMContentLoaded', () => {
           updateThemeSelector();
         });
       });
-      console.log(`Theme options event listeners added (${themeOptions.length} options)`);
+      
     } else {
-      console.error('Theme options not found!');
+      
     }
     
     // 确认删除按钮点击事件
@@ -588,17 +588,17 @@ document.addEventListener('DOMContentLoaded', () => {
           hideDeleteModal();
         }
       });
-      console.log('Confirm delete button event listener added');
+      
     } else {
-      console.error('Confirm delete button not found!');
+      
     }
     
     // 取消删除按钮点击事件
     if (cancelDeleteBtn) {
       cancelDeleteBtn.addEventListener('click', hideDeleteModal);
-      console.log('Cancel delete button event listener added');
+      
     } else {
-      console.error('Cancel delete button not found!');
+      
     }
     
     // 关闭模态框按钮点击事件
@@ -609,9 +609,9 @@ document.addEventListener('DOMContentLoaded', () => {
           hideImportModal();
         });
       });
-      console.log(`Modal close buttons event listeners added (${modalCloseButtons.length} buttons)`);
+      
     } else {
-      console.error('Modal close buttons not found!');
+      
     }
     
     // 标签页切换事件
@@ -641,9 +641,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       });
-      console.log(`Tab event listeners added (${tabs.length} tabs)`);
+      
     } else {
-      console.error('Tabs not found!');
+      
     }
     
     // 默认语言选择事件
@@ -653,9 +653,9 @@ document.addEventListener('DOMContentLoaded', () => {
         saveConfigs();
         showStatus('默认语言已更新');
       });
-      console.log('Default language select event listener added');
+      
     } else {
-      console.error('Default language select not found!');
+      
     }
   }
   
