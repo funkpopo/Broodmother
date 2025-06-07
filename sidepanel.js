@@ -596,6 +596,16 @@ document.addEventListener('DOMContentLoaded', () => {
     
   }
 
+  // 更新缩放按钮可见性
+  function updateZoomControlsVisibility() {
+    const zoomControls = document.querySelector('.zoom-controls');
+    if (!zoomControls) return;
+    
+    // 如果正在进行任何选择操作，隐藏缩放按钮
+    const isSelecting = drawing || isDragging || isResizing;
+    zoomControls.style.display = isSelecting ? 'none' : 'flex';
+  }
+
   // 鼠标按下事件 - 开始创建选择框或拖拽
   thumbnailContainer.addEventListener('mousedown', (e) => {
     // 检查是否是中键或按住Ctrl的左键（平移模式）
@@ -666,6 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function startNewSelection(mouseX, mouseY, bounds) {
     drawing = true;
+    updateZoomControlsVisibility(); // 隐藏缩放按钮
     
     // 确保起始点在缩略图边界内
     const constrainedStartX = Math.max(bounds.left, Math.min(bounds.left + bounds.width, mouseX));
@@ -686,6 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function startDrag(e) {
     isDragging = true;
+    updateZoomControlsVisibility(); // 隐藏缩放按钮
     selectionBox.classList.add('dragging');
     
     const containerRect = thumbnailContainer.getBoundingClientRect();
@@ -705,6 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function startResize(e, handleClass) {
     isResizing = true;
+    updateZoomControlsVisibility(); // 隐藏缩放按钮
     selectionBox.classList.add('resizing');
     
     resizeHandle = handleClass;
@@ -750,6 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!bounds) {
           // 如果无法获取边界，停止绘制
           drawing = false;
+          updateZoomControlsVisibility(); // 显示缩放按钮
           selectionBox.style.display = 'none';
           return;
         }
@@ -894,13 +908,16 @@ document.addEventListener('DOMContentLoaded', () => {
       updateSelectionDisplay();
     } else if (drawing) {
       drawing = false;
+      updateZoomControlsVisibility(); // 显示缩放按钮
       finalizeSelection();
     } else if (isDragging) {
       isDragging = false;
+      updateZoomControlsVisibility(); // 显示缩放按钮
       selectionBox.classList.remove('dragging');
       finalizeSelection();
     } else if (isResizing) {
       isResizing = false;
+      updateZoomControlsVisibility(); // 显示缩放按钮
       selectionBox.classList.remove('resizing');
       resizeHandle = null;
       finalizeSelection();
@@ -964,6 +981,8 @@ document.addEventListener('DOMContentLoaded', () => {
     isDragging = false;
     isResizing = false;
     resizeHandle = null;
+    
+    updateZoomControlsVisibility(); // 显示缩放按钮
   }
 
   // 显示右键菜单
