@@ -72,6 +72,9 @@ const zh = {
   'analysis_in_progress': '分析进行中...',
   'back_to_bottom': '回到底部',
   'stop_analysis': '停止分析',
+  'analysis_interrupted': '分析已中断',
+  'analysis_interrupted_note': '上述内容为中断前的分析结果',
+  'analysis_cancelled': '分析已取消',
   
   // 侧边栏 - 错误消息
   'cannot_get_tab_info': '无法获取当前标签页信息。',

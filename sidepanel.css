@@ -1,11 +1,53 @@
+:root {
+  /* 亮色主题 */
+  --light-bg: #f9f9f9;
+  --light-text: #333;
+  --light-border: #ccc;
+  --light-input-bg: #fff;
+  --light-btn-primary: #007bff;
+  --light-btn-text: #ffffff;
+  --light-card-bg: #ffffff;
+  --light-header-bg: #f8f9fa;
+  --light-hover-bg: #f0f0f0;
+  
+  /* 暗色主题 */
+  --dark-bg: #1a1a1a;
+  --dark-text: #e0e0e0;
+  --dark-border: #555;
+  --dark-input-bg: #2d2d2d;
+  --dark-btn-primary: #0d6efd;
+  --dark-btn-text: #ffffff;
+  --dark-card-bg: #2d2d2d;
+  --dark-header-bg: #333;
+  --dark-hover-bg: #404040;
+}
+
 body {
   font-family: sans-serif;
   margin: 0;
   padding: 10px;
   box-sizing: border-box;
-  background-color: #f9f9f9;
-  color: #333;
   min-width: 300px; /* 确保侧边栏有最小宽度 */
+  transition: all 0.3s ease;
+}
+
+/* 亮色主题样式 */
+body.light-theme {
+  background-color: var(--light-bg);
+  color: var(--light-text);
+}
+
+/* 暗色主题样式 */
+body.dark-theme {
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+}
+
+/* 自动主题样式 - 会在JS中根据浏览器主题动态切换 */
+body.auto-theme {
+  /* 默认为亮色，JS会处理切换 */
+  background-color: var(--light-bg);
+  color: var(--light-text);
 }
 
 .container {
@@ -28,13 +70,20 @@ body {
 .thumbnail-header h3 {
   margin: 0;
   font-size: 14px;
+}
+
+/* 亮色主题 - 标题 */
+.light-theme .thumbnail-header h3 {
   color: #555;
+}
+
+/* 暗色主题 - 标题 */
+.dark-theme .thumbnail-header h3 {
+  color: var(--dark-text);
 }
 
 /* 语言切换按钮样式 */
 .language-btn {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
   border-radius: 4px;
   padding: 4px 8px;
   cursor: pointer;
@@ -43,25 +92,54 @@ body {
   transition: all 0.2s;
   min-width: 30px;
   height: 24px;
+}
+
+/* 亮色主题 - 语言按钮 */
+.light-theme .language-btn {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
   color: #333;
 }
 
-.language-btn:hover {
+.light-theme .language-btn:hover {
   background-color: #007bff;
   color: white;
   border-color: #007bff;
 }
 
+/* 暗色主题 - 语言按钮 */
+.dark-theme .language-btn {
+  background: var(--dark-input-bg);
+  border: 1px solid var(--dark-border);
+  color: var(--dark-text);
+}
+
+.dark-theme .language-btn:hover {
+  background-color: var(--dark-btn-primary);
+  color: var(--dark-btn-text);
+  border-color: var(--dark-btn-primary);
+}
+
 #thumbnail-container {
   position: relative;
-  border: 1px solid #ccc;
   overflow: hidden; /* 确保选框不会溢出 */
-  background-color: #eee; /* 缩略图加载前的背景色 */
   display: flex; /* 用于居中图片（如果图片小于容器） */
   align-items: center;
   justify-content: center;
   min-height: 150px; /* 避免在图片加载前高度为0 */
   user-select: none; /* 防止文本选择干扰 */
+}
+
+/* 亮色主题 - 缩略图容器 */
+.light-theme #thumbnail-container {
+  border: 1px solid var(--light-border);
+  background-color: #eee; /* 缩略图加载前的背景色 */
+}
+
+/* 暗色主题 - 缩略图容器 */
+.dark-theme #thumbnail-container {
+  border: 1px solid var(--dark-border);
+  background-color: #333; /* 缩略图加载前的背景色 */
 }
 
 .overlay {
@@ -162,37 +240,77 @@ body {
 
 .controls button {
   padding: 8px 12px;
-  border: 1px solid #007bff;
-  background-color: #007bff;
-  color: white;
   border-radius: 4px;
   cursor: pointer;
   flex-grow: 1; /* 让按钮平分空间 */
+  transition: all 0.2s ease;
 }
 
-.controls button:hover {
+/* 亮色主题 - 控制按钮 */
+.light-theme .controls button {
+  border: 1px solid var(--light-btn-primary);
+  background-color: var(--light-btn-primary);
+  color: var(--light-btn-text);
+}
+
+.light-theme .controls button:hover {
   background-color: #0056b3;
 }
 
-.controls button:disabled {
+.light-theme .controls button:disabled {
   background-color: #ccc;
   border-color: #bbb;
   cursor: not-allowed;
 }
 
+/* 暗色主题 - 控制按钮 */
+.dark-theme .controls button {
+  border: 1px solid var(--dark-btn-primary);
+  background-color: var(--dark-btn-primary);
+  color: var(--dark-btn-text);
+}
+
+.dark-theme .controls button:hover {
+  background-color: #0056b3;
+}
+
+.dark-theme .controls button:disabled {
+  background-color: #666;
+  border-color: #555;
+  cursor: not-allowed;
+  color: #999;
+}
+
 #analysis-result-container {
   flex-grow: 1; /* 使结果区域填充剩余空间 */
-  border: 1px solid #ddd;
   padding: 10px;
-  background-color: #fff;
   overflow-y: auto; /* 如果内容过多则显示滚动条 */
   min-height: 100px;
+}
+
+/* 亮色主题 - 分析结果容器 */
+.light-theme #analysis-result-container {
+  border: 1px solid #ddd;
+  background-color: var(--light-card-bg);
+}
+
+.light-theme #analysis-result h3 {
+  color: #555;
+}
+
+/* 暗色主题 - 分析结果容器 */
+.dark-theme #analysis-result-container {
+  border: 1px solid var(--dark-border);
+  background-color: var(--dark-card-bg);
+}
+
+.dark-theme #analysis-result h3 {
+  color: var(--dark-text);
 }
 
 #analysis-result h3 {
   margin-top: 0;
   font-size: 1em;
-  color: #555;
 }
 
 #analysis-result div {
@@ -211,18 +329,51 @@ body {
   padding: 0;
   font-weight: 600;
   line-height: 1.25;
+}
+
+/* 亮色主题 - 标题 */
+.light-theme #analysis-result h1,
+.light-theme #analysis-result h2,
+.light-theme #analysis-result h3,
+.light-theme #analysis-result h4,
+.light-theme #analysis-result h5,
+.light-theme #analysis-result h6 {
   color: #24292e;
+}
+
+.light-theme #analysis-result h1 {
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.light-theme #analysis-result h2 {
+  border-bottom: 1px solid #e1e4e8;
+}
+
+/* 暗色主题 - 标题 */
+.dark-theme #analysis-result h1,
+.dark-theme #analysis-result h2,
+.dark-theme #analysis-result h3,
+.dark-theme #analysis-result h4,
+.dark-theme #analysis-result h5,
+.dark-theme #analysis-result h6 {
+  color: var(--dark-text);
+}
+
+.dark-theme #analysis-result h1 {
+  border-bottom: 1px solid #444;
+}
+
+.dark-theme #analysis-result h2 {
+  border-bottom: 1px solid #444;
 }
 
 #analysis-result h1 {
   font-size: 1.5em;
-  border-bottom: 1px solid #e1e4e8;
   padding-bottom: 8px;
 }
 
 #analysis-result h2 {
   font-size: 1.3em;
-  border-bottom: 1px solid #e1e4e8;
   padding-bottom: 6px;
 }
 
@@ -262,7 +413,16 @@ body {
 
 #analysis-result strong {
   font-weight: 600;
+}
+
+/* 亮色主题 - 强调文本 */
+.light-theme #analysis-result strong {
   color: #24292e;
+}
+
+/* 暗色主题 - 强调文本 */
+.dark-theme #analysis-result strong {
+  color: var(--dark-text);
 }
 
 #analysis-result em {
@@ -270,15 +430,25 @@ body {
 }
 
 #analysis-result code {
-  background-color: rgba(27, 31, 35, 0.05);
   border-radius: 3px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.9em;
   padding: 2px 4px;
 }
 
+/* 亮色主题 - 代码 */
+.light-theme #analysis-result code {
+  background-color: rgba(27, 31, 35, 0.05);
+  color: #24292e;
+}
+
+/* 暗色主题 - 代码 */
+.dark-theme #analysis-result code {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #f8f8f2;
+}
+
 #analysis-result pre {
-  background-color: #f6f8fa;
   border-radius: 6px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.85em;
@@ -286,43 +456,97 @@ body {
   overflow: auto;
   padding: 12px;
   margin: 12px 0;
+}
+
+/* 亮色主题 - 代码块 */
+.light-theme #analysis-result pre {
+  background-color: #f6f8fa;
   border: 1px solid #e1e4e8;
+  color: #24292e;
+}
+
+/* 暗色主题 - 代码块 */
+.dark-theme #analysis-result pre {
+  background-color: #2d2d2d;
+  border: 1px solid #444;
+  color: #f8f8f2;
 }
 
 #analysis-result blockquote {
-  border-left: 4px solid #dfe2e5;
-  color: #6a737d;
   margin: 0;
   padding: 0 16px;
 }
 
+/* 亮色主题 - 引用块 */
+.light-theme #analysis-result blockquote {
+  border-left: 4px solid #dfe2e5;
+  color: #6a737d;
+}
+
+/* 暗色主题 - 引用块 */
+.dark-theme #analysis-result blockquote {
+  border-left: 4px solid #555;
+  color: #aaa;
+}
+
 #analysis-result hr {
   border: none;
-  border-top: 1px solid #e1e4e8;
   height: 1px;
   margin: 24px 0;
 }
 
+/* 亮色主题 - 分隔线 */
+.light-theme #analysis-result hr {
+  border-top: 1px solid #e1e4e8;
+}
+
+/* 暗色主题 - 分隔线 */
+.dark-theme #analysis-result hr {
+  border-top: 1px solid #444;
+}
+
 /* 状态消息样式 */
 .error-message {
-  color: #d73a49;
-  background-color: #ffeef0;
-  border: 1px solid #fdaeb7;
   border-radius: 4px;
   padding: 8px;
   margin: 8px 0;
   font-size: 0.9em;
 }
 
+/* 亮色主题 - 错误消息 */
+.light-theme .error-message {
+  color: #d73a49;
+  background-color: #ffeef0;
+  border: 1px solid #fdaeb7;
+}
+
+/* 暗色主题 - 错误消息 */
+.dark-theme .error-message {
+  color: #ff6b85;
+  background-color: #3d1a1f;
+  border: 1px solid #7a2e3a;
+}
+
 .loading-message {
-  color: #0366d6;
-  background-color: #f1f8ff;
-  border: 1px solid #c8e1ff;
   border-radius: 4px;
   padding: 8px;
   margin: 8px 0;
   font-size: 0.9em;
   text-align: center;
+}
+
+/* 亮色主题 - 加载消息 */
+.light-theme .loading-message {
+  color: #0366d6;
+  background-color: #f1f8ff;
+  border: 1px solid #c8e1ff;
+}
+
+/* 暗色主题 - 加载消息 */
+.dark-theme .loading-message {
+  color: #58a6ff;
+  background-color: #1a2332;
+  border: 1px solid #2e4976;
 }
 
 /* 针对emoji的优化 */
@@ -373,13 +597,24 @@ body {
 }
 
 .info-message {
-  color: #17a2b8;
-  background-color: #d1ecf1;
-  border: 1px solid #bee5eb;
   border-radius: 4px;
   padding: 8px;
   margin: 8px 0;
   font-size: 0.9em;
+}
+
+/* 亮色主题 - 信息消息 */
+.light-theme .info-message {
+  color: #17a2b8;
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+}
+
+/* 暗色主题 - 信息消息 */
+.dark-theme .info-message {
+  color: #58d2e8;
+  background-color: #1a2a2e;
+  border: 1px solid #2e5863;
 }
 
 .stream-content {
@@ -440,18 +675,34 @@ body {
   width: 6px;
 }
 
-#analysis-result-container::-webkit-scrollbar-track {
+/* 亮色主题 - 滚动条 */
+.light-theme #analysis-result-container::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 3px;
 }
 
-#analysis-result-container::-webkit-scrollbar-thumb {
+.light-theme #analysis-result-container::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 3px;
 }
 
-#analysis-result-container::-webkit-scrollbar-thumb:hover {
+.light-theme #analysis-result-container::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* 暗色主题 - 滚动条 */
+.dark-theme #analysis-result-container::-webkit-scrollbar-track {
+  background: #2d2d2d;
+  border-radius: 3px;
+}
+
+.dark-theme #analysis-result-container::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.dark-theme #analysis-result-container::-webkit-scrollbar-thumb:hover {
+  background: #777;
 }
 
 /* 返回底部按钮 */
@@ -459,8 +710,6 @@ body {
   position: absolute;
   bottom: 16px;
   right: 16px;
-  background-color: #007bff;
-  border: 1px solid #007bff;
   color: white;
   padding: 8px 12px;
   border-radius: 20px;
@@ -468,12 +717,32 @@ body {
   cursor: pointer;
   z-index: 10;
   display: none;
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
   transition: all 0.2s ease;
 }
 
-.back-to-bottom-btn:hover {
+/* 亮色主题 - 返回底部按钮 */
+.light-theme .back-to-bottom-btn {
+  background-color: #007bff;
+  border: 1px solid #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.light-theme .back-to-bottom-btn:hover {
   background-color: #0056b3;
+}
+
+/* 暗色主题 - 返回底部按钮 */
+.dark-theme .back-to-bottom-btn {
+  background-color: var(--dark-btn-primary);
+  border: 1px solid var(--dark-btn-primary);
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+}
+
+.dark-theme .back-to-bottom-btn:hover {
+  background-color: #0056b3;
+}
+
+.back-to-bottom-btn:hover {
   transform: translateY(-2px);
 }
 
@@ -526,8 +795,6 @@ body {
 
 /* 右键菜单样式 */
 .context-menu {
-  background-color: #fff;
-  border: 1px solid #ddd;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   min-width: 150px;
@@ -536,24 +803,53 @@ body {
   z-index: 2000;
 }
 
-.context-menu-item {
-  padding: 10px 15px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+/* 亮色主题 - 右键菜单 */
+.light-theme .context-menu {
+  background-color: #fff;
+  border: 1px solid #ddd;
+}
+
+.light-theme .context-menu-item {
   border-bottom: 1px solid #f0f0f0;
 }
 
-.context-menu-item:last-child {
-  border-bottom: none;
-}
-
-.context-menu-item:hover {
+.light-theme .context-menu-item:hover {
   background-color: #f8f9fa;
   color: #007bff;
 }
 
-.context-menu-item:active {
+.light-theme .context-menu-item:active {
   background-color: #e9ecef;
+}
+
+/* 暗色主题 - 右键菜单 */
+.dark-theme .context-menu {
+  background-color: var(--dark-card-bg);
+  border: 1px solid var(--dark-border);
+}
+
+.dark-theme .context-menu-item {
+  border-bottom: 1px solid #404040;
+  color: var(--dark-text);
+}
+
+.dark-theme .context-menu-item:hover {
+  background-color: var(--dark-hover-bg);
+  color: var(--dark-btn-primary);
+}
+
+.dark-theme .context-menu-item:active {
+  background-color: #505050;
+}
+
+.context-menu-item {
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.context-menu-item:last-child {
+  border-bottom: none;
 }
 
 /* 右键菜单分隔线 */
@@ -572,8 +868,6 @@ body {
   display: flex;
   align-items: center;
   gap: 5px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border: 1px solid #ddd;
   border-radius: 6px;
   padding: 5px 8px;
   font-size: 12px;
@@ -582,8 +876,28 @@ body {
   backdrop-filter: blur(5px);
 }
 
+/* 亮色主题 - 缩放控制 */
+.light-theme .zoom-controls {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ddd;
+}
+
+.light-theme #zoom-level {
+  color: #333;
+}
+
+/* 暗色主题 - 缩放控制 */
+.dark-theme .zoom-controls {
+  background-color: rgba(45, 45, 45, 0.9);
+  border: 1px solid var(--dark-border);
+}
+
+.dark-theme #zoom-level {
+  color: var(--dark-text);
+}
+
 .zoom-controls button {
-  background-color: #007bff;
+  background-color: var(--light-btn-primary);
   color: white;
   border: none;
   border-radius: 3px;
@@ -608,9 +922,74 @@ body {
 }
 
 #zoom-level {
-  color: #333;
   font-weight: 500;
   min-width: 40px;
   text-align: center;
   font-size: 11px;
-} 
+}
+
+/* 分析中断通知样式 */
+.analysis-interrupted-notice {
+  margin: 20px 0;
+  padding: 0;
+  border-radius: 8px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.interruption-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #f39c12, transparent);
+  margin: 0;
+}
+
+.interruption-content {
+  padding: 12px 16px;
+  text-align: center;
+  color: #856404;
+  background-color: rgba(255, 243, 205, 0.8);
+}
+
+.interruption-icon {
+  font-size: 16px;
+  margin-right: 8px;
+  color: #f39c12;
+}
+
+.interruption-content strong {
+  color: #856404;
+  font-weight: 600;
+}
+
+.interruption-content small {
+  color: #6c5c2d;
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}
+
+/* 暗色主题下的中断通知样式 */
+@media (prefers-color-scheme: dark) {
+  .analysis-interrupted-notice {
+    background-color: #2c2416;
+    border-color: #5a4a1a;
+  }
+  
+  .interruption-content {
+    background-color: rgba(44, 36, 22, 0.8);
+    color: #ffc107;
+  }
+  
+  .interruption-icon {
+    color: #ffc107;
+  }
+  
+  .interruption-content strong {
+    color: #ffc107;
+  }
+  
+  .interruption-content small {
+    color: #d4af37;
+  }
+}

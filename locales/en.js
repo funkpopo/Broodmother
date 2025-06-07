@@ -72,6 +72,9 @@ const en = {
   'analysis_in_progress': 'Analysis in progress...',
   'back_to_bottom': 'Back to Bottom',
   'stop_analysis': 'Stop Analysis',
+  'analysis_interrupted': 'Analysis Interrupted',
+  'analysis_interrupted_note': 'Above content shows analysis results before interruption',
+  'analysis_cancelled': 'Analysis Cancelled',
   
   // Sidepanel - error messages
   'cannot_get_tab_info': 'Cannot get current tab information.',

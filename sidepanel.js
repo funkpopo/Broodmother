@@ -45,6 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初始化国际化支持
   initializeI18n();
   
+  // 初始化主题
+  loadTheme();
+  
   const thumbnailContainer = document.getElementById('thumbnail-container');
   const thumbnailImage = document.getElementById('thumbnail-image');
   const selectionBox = document.getElementById('selection-box');
@@ -71,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentTabUrl = null;
   let errorCount = 0;
   const maxErrorCount = 5;
+  let currentTheme = 'light';
 
   // 缩放相关变量
   let currentZoom = 1.0;
@@ -1045,7 +1049,6 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="streaming-header">
           <div class="loading-message">${loadingMessage}</div>
           <button id="cancel-stream" class="cancel-button" style="display: none;" title="${getText('stop_analysis')}">
-            <span class="cancel-icon">✕</span>
           </button>
         </div>
         <div id="stream-content" class="stream-content"></div>
@@ -1084,7 +1087,26 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelStreamButton.style.display = 'inline-block';
             cancelStreamButton.onclick = () => {
               isStreamingActive = false;
-              analysisResultDiv.innerHTML = `<div class="info-message">分析已取消</div>`;
+              
+              // 保留已显示的内容，添加中断标识
+              const streamContentDiv = document.getElementById('stream-content');
+              if (streamContentDiv && streamBuffer) {
+                // 先渲染已有的Markdown内容
+                renderMarkdownContent(streamBuffer, streamContentDiv);
+              } else {
+                // 如果没有流式内容，显示中断消息
+                analysisResultDiv.innerHTML = `<div class="info-message">${getText('analysis_cancelled')}</div>`;
+              }
+              
+              // 隐藏取消按钮和加载状态
+              cancelStreamButton.style.display = 'none';
+              const loadingDiv = analysisResultDiv.querySelector('.loading-message');
+              if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+              }
+              
+              // 隐藏返回底部按钮
+              hideBackToBottomButton();
             };
           }
           
@@ -1296,5 +1318,47 @@ document.addEventListener('DOMContentLoaded', () => {
         msg.textContent = getText('cannot_get_tab_info');
       }
     });
+  }
+
+  // 主题管理函数
+  function loadTheme() {
+    chrome.storage.sync.get(['currentTheme'], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error('加载主题失败:', chrome.runtime.lastError.message);
+        return;
+      }
+      
+      currentTheme = result.currentTheme || 'light';
+      applyTheme(currentTheme);
+    });
+
+    // 监听storage变化，实时同步主题设置
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (namespace === 'sync' && changes.currentTheme) {
+        const newTheme = changes.currentTheme.newValue;
+        if (newTheme !== currentTheme) {
+          currentTheme = newTheme;
+          applyTheme(currentTheme);
+        }
+      }
+    });
+  }
+
+  function applyTheme(theme) {
+    currentTheme = theme;
+    document.body.className = theme + '-theme';
+    
+    // 如果是自动主题，检测系统主题
+    if (theme === 'auto') {
+      const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.body.className = (prefersDarkMode ? 'dark' : 'light') + '-theme';
+      
+      // 监听系统主题变化
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (currentTheme === 'auto') {
+          document.body.className = (e.matches ? 'dark' : 'light') + '-theme';
+        }
+      });
+    }
   }
 });
