@@ -285,7 +285,10 @@ body.auto-theme {
   flex-grow: 1; /* 使结果区域填充剩余空间 */
   padding: 10px;
   overflow-y: auto; /* 如果内容过多则显示滚动条 */
+  overflow-x: hidden; /* 防止水平滚动 */
   min-height: 100px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 亮色主题 - 分析结果容器 */
@@ -310,12 +313,33 @@ body.auto-theme {
 
 #analysis-result h3 {
   margin-top: 0;
+  margin-bottom: 8px;
   font-size: 1em;
 }
 
 #analysis-result div {
   white-space: pre-wrap; /* 保留换行和空格 */
   word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+/* 确保分析结果容器和所有子元素都能自适应宽度 */
+#analysis-result,
+#analysis-result * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#analysis-result pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+#analysis-result code {
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 /* Markdown渲染样式 */
@@ -329,6 +353,11 @@ body.auto-theme {
   padding: 0;
   font-weight: 600;
   line-height: 1.25;
+}
+
+/* 减少第一个元素的上边距，避免与标题间距过大 */
+#analysis-result > *:first-child {
+  margin-top: 8px !important;
 }
 
 /* 亮色主题 - 标题 */
@@ -622,6 +651,10 @@ body.auto-theme {
   margin-top: 8px;
   opacity: 1;
   transition: opacity 0.2s ease;
+  /* 确保内容自适应容器宽度 */
+  width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* 流式渲染时的淡入效果 */
@@ -638,6 +671,48 @@ body.auto-theme {
 .stream-content ol {
   animation: none;
   transition: opacity 0.1s ease;
+}
+
+/* 优化流式输出的间距，使其更紧凑 */
+.stream-content h1,
+.stream-content h2,
+.stream-content h3,
+.stream-content h4,
+.stream-content h5,
+.stream-content h6 {
+  margin: 8px 0 4px 0 !important;
+  line-height: 1.3;
+}
+
+.stream-content > *:first-child {
+  margin-top: 4px !important;
+}
+
+.stream-content p {
+  margin: 4px 0 !important;
+  line-height: 1.4;
+}
+
+.stream-content ul,
+.stream-content ol {
+  margin: 4px 0 !important;
+  padding-left: 20px;
+}
+
+.stream-content li {
+  margin: 2px 0 !important;
+  line-height: 1.3;
+}
+
+.stream-content pre {
+  margin: 8px 0 !important;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.stream-content code {
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 @keyframes fadeIn {
