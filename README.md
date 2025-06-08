@@ -5,7 +5,7 @@ Broodmother - AI Translation Extension
 A Chrome browser extension that uses AI technology to translate selected text with a right-click.
 
 Screenshot Example
-<img src="https://img.picgo.net/2025/06/05/14fd7533d88f6b3cf.gif" alt="1" border="0">
+![1](https://img.picgo.net/2025/06/08/1b9d92f3d6e91bcd3.gif)
 
 ### Core Features
 
