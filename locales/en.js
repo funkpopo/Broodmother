@@ -29,6 +29,7 @@ const en = {
   'add_config': 'Add Configuration',
   'export_configs': 'Export Configurations',
   'import_configs': 'Import Configurations',
+  'test_config': 'Test',
   'use_config': 'Use',
   'edit_config': 'Edit',
   'delete_config': 'Delete',
@@ -43,6 +44,9 @@ const en = {
   'configs_imported': 'Configurations imported successfully',
   'invalid_config_data': 'Invalid configuration data',
   'no_configs_to_export': 'No configurations to export',
+  'testing_api': 'Testing...',
+  'test_success': 'API test successful',
+  'test_failed': 'API test failed',
   
   // Popup interface - error messages
   'enter_config_name': 'Please enter configuration name',

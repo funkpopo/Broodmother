@@ -86,6 +86,74 @@ document.addEventListener('DOMContentLoaded', () => {
   function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
   }
+
+  // 测试API配置
+  function testApiConfig(config) {
+    if (!config || !config.apiUrl || !config.apiKey || !config.modelName) {
+      showStatus(getText('test_failed') + ': 配置信息不完整', true);
+      return;
+    }
+
+    // 显示测试中状态
+    showStatus(getText('testing_api'));
+
+    // 构建测试请求
+    const testMessage = "ping, just reply 'pong'";
+    const requestBody = {
+      model: config.modelName,
+      messages: [
+        {
+          role: "user",
+          content: testMessage
+        }
+      ]
+    };
+
+    // 发送测试请求
+    fetch(config.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + config.apiKey
+      },
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(10000) // 10秒超时
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      // 检查响应格式
+      let hasValidResponse = false;
+      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
+        hasValidResponse = true;
+      } else if (data.translatedText) {
+        hasValidResponse = true;
+      } else if (data.translations && Array.isArray(data.translations) && data.translations.length > 0) {
+        hasValidResponse = true;
+      }
+
+      if (hasValidResponse) {
+        showStatus(getText('test_success') + ` (${config.name})`);
+      } else {
+        showStatus(getText('test_failed') + ': 响应格式无效', true);
+      }
+    })
+    .catch(error => {
+      let errorMessage = getText('test_failed');
+      if (error.name === 'TimeoutError') {
+        errorMessage += ': 请求超时';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage += ': ' + error.message;
+      } else {
+        errorMessage += ': 网络错误';
+      }
+      showStatus(errorMessage, true);
+    });
+  }
   
   // 加载配置
   function loadConfigs() {
@@ -321,6 +389,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const buttonsDiv = document.createElement('div');
       buttonsDiv.style.display = 'flex';
       buttonsDiv.style.gap = '5px';
+      
+      // 测试按钮
+      const testButton = document.createElement('button');
+      testButton.textContent = getText('test_config');
+      testButton.className = 'btn-secondary';
+      testButton.style.padding = '4px 8px';
+      testButton.style.fontSize = '12px';
+      testButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        testApiConfig(config);
+      });
+      buttonsDiv.appendChild(testButton);
       
       // 使用按钮
       const useButton = document.createElement('button');

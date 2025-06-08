@@ -29,6 +29,7 @@ const zh = {
   'add_config': '添加配置',
   'export_configs': '导出配置',
   'import_configs': '导入配置',
+  'test_config': '测试',
   'use_config': '使用',
   'edit_config': '编辑',
   'delete_config': '删除',
@@ -43,6 +44,9 @@ const zh = {
   'configs_imported': '配置导入成功',
   'invalid_config_data': '无效的配置数据',
   'no_configs_to_export': '没有配置可导出',
+  'testing_api': '测试中...',
+  'test_success': 'API测试成功',
+  'test_failed': 'API测试失败',
   
   // popup界面 - 错误消息
   'enter_config_name': '请输入配置名称',
