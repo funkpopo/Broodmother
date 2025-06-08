@@ -304,12 +304,20 @@ document.addEventListener('DOMContentLoaded', () => {
     analyzePageButton.disabled = false;
     
     if (newTabId !== tabId || !tabId) {
-      console.log('标签页切换:', { from: tabId, to: newTabId });
+      console.log('标签页切换:', { from: tabId, to: newTabId, url: newTabUrl });
       tabId = newTabId;
       currentTabUrl = newTabUrl;
       clearThumbnail();
       errorCount = 0;
-      requestThumbnail();
+      
+      // 延迟请求截图，等待标签页稳定
+      setTimeout(() => {
+        if (tabId === newTabId) { // 确保标签页没有再次切换
+          console.log('延迟请求截图，标签页ID:', tabId);
+          requestThumbnail();
+        }
+      }, 1500); // Firefox需要更长延迟
+      
       // 重启自动刷新
       startAutoRefresh();
     } else if (newTabUrl !== currentTabUrl) {
@@ -317,7 +325,15 @@ document.addEventListener('DOMContentLoaded', () => {
       currentTabUrl = newTabUrl;
       clearThumbnail();
       errorCount = 0;
-      requestThumbnail();
+      
+      // URL变化时也延迟请求，等待页面开始加载
+      setTimeout(() => {
+        if (currentTabUrl === newTabUrl) { // 确保URL没有再次变化
+          console.log('延迟请求截图，URL变化:', newTabUrl);
+          requestThumbnail();
+        }
+      }, 500); // Firefox需要更长延迟等待页面加载
+      
       // 重启自动刷新
       startAutoRefresh();
     } else {
@@ -374,10 +390,22 @@ document.addEventListener('DOMContentLoaded', () => {
     autoRefreshInterval = setInterval(() => {
       // 只在页面可见且有有效tabId时才刷新
       if (!document.hidden && tabId && errorCount < maxErrorCount) {
-        console.log('自动刷新页面预览');
-        requestThumbnail();
+        // 检查是否有缩略图，如果有则降低刷新频率
+        const hasValidThumbnail = thumbnailImage.src && naturalWidth > 0 && naturalHeight > 0;
+        
+        if (!hasValidThumbnail) {
+          console.log('自动刷新页面预览（无有效缩略图）');
+          requestThumbnail();
+        } else {
+          // 有有效缩略图时，降低刷新频率
+          const now = Date.now();
+          if (now - lastCaptureTime > 2000) { // Firefox需要更长间隔
+            console.log('自动刷新页面预览（定期更新）');
+            requestThumbnail();
+          }
+        }
       }
-    }, 1000); // 1秒刷新一次
+    }, 200); // Firefox中使用0.2秒间隔
   }
 
   // 启动自动刷新
@@ -489,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const now = Date.now();
     const minInterval = 200; // 减少到200ms，提高响应速度
     if (now - lastCaptureTime < minInterval) {
-      
+      console.log('截图请求过于频繁，跳过');
       return;
     }
     lastCaptureTime = now;
@@ -504,8 +532,21 @@ document.addEventListener('DOMContentLoaded', () => {
     
     chrome.runtime.sendMessage({ action: "captureTab" }, (response) => {
       if (chrome.runtime.lastError) {
-        
+        console.error('截图请求失败:', chrome.runtime.lastError.message);
         errorCount++;
+        
+        // 根据错误类型决定是否继续重试
+        const errorMsg = chrome.runtime.lastError.message;
+        if (errorMsg.includes('permission') || errorMsg.includes('activeTab')) {
+          // 权限错误，停止重试并显示说明
+          const currentLang = i18n.getCurrentLanguage();
+          const permissionMessage = currentLang === 'zh' ? 
+            '需要激活标签页权限才能截图。请点击扩展图标或使用右键菜单来激活权限。' : 
+            'ActiveTab permission required for screenshot. Please click extension icon or use context menu to activate permission.';
+          showOverlay(permissionMessage);
+          return;
+        }
+        
         if (errorCount >= maxErrorCount) {
           const currentLang = i18n.getCurrentLanguage();
           const serviceUnavailableMessage = currentLang === 'zh' ? '截图服务暂时不可用，将继续自动重试' : 'Screenshot service temporarily unavailable, will continue retrying';
@@ -515,29 +556,53 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       if (response && response.dataUrl) {
+        console.log('收到截图数据，长度:', response.dataUrl.length);
         errorCount = 0;
-        thumbnailImage.src = response.dataUrl;
+        
+        // 添加加载超时处理
+        const loadTimeout = setTimeout(() => {
+          console.warn('缩略图加载超时');
+          errorCount++;
+          const currentLang = i18n.getCurrentLanguage();
+          const timeoutMessage = currentLang === 'zh' ? '缩略图加载超时，正在重试...' : 'Thumbnail loading timeout, retrying...';
+          showOverlay(timeoutMessage);
+        }, 10000); // 10秒超时
+        
         thumbnailImage.onload = () => {
+          clearTimeout(loadTimeout);
           naturalWidth = thumbnailImage.naturalWidth;
           naturalHeight = thumbnailImage.naturalHeight;
           displayWidth = thumbnailImage.offsetWidth;
           displayHeight = thumbnailImage.offsetHeight;
           
-          
+          console.log('缩略图加载成功:', { naturalWidth, naturalHeight, displayWidth, displayHeight });
           hideOverlay();
           updateSelectionDisplay();
           
           if (displayWidth === 0 || displayHeight === 0) {
-            console.warn("Thumbnail display dimensions are zero. May affect selection.");
+            console.warn("缩略图显示尺寸为零，可能影响选择功能");
+            // 延迟重新检查尺寸
+            setTimeout(() => {
+              displayWidth = thumbnailImage.offsetWidth;
+              displayHeight = thumbnailImage.offsetHeight;
+              if (displayWidth > 0 && displayHeight > 0) {
+                console.log('延迟检查后获得正确尺寸:', { displayWidth, displayHeight });
+                updateSelectionDisplay();
+              }
+            }, 100);
           }
         };
+        
         thumbnailImage.onerror = () => {
-          
+          clearTimeout(loadTimeout);
+          console.error('缩略图加载失败');
           errorCount++;
           const currentLang = i18n.getCurrentLanguage();
           const loadErrorMessage = currentLang === 'zh' ? '无法加载页面缩略图，自动重试中...' : 'Cannot load page thumbnail, retrying...';
           showOverlay(loadErrorMessage);
         };
+        
+        thumbnailImage.src = response.dataUrl;
       } else if (response && response.error) {
         
         errorCount++;

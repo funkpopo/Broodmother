@@ -293,7 +293,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       });
     });
   } else if (info.menuItemId === "broodmother_parse" && tab && tab.id) {
-    chrome.sidePanel.open({ tabId: tab.id });
+    // Firefox专用：打开侧边栏
+    if (browser && browser.sidebarAction) {
+      browser.sidebarAction.open();
+    } else {
+      console.warn('sidebarAction API不可用');
+    }
   }
 });
 
@@ -305,19 +310,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "configChanged") {
     
   } else if (request.action === "captureTab") {
-    chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
-      if (chrome.runtime.lastError) {
-        
-        sendResponse({ error: "截图失败", details: chrome.runtime.lastError.message });
-        return;
-      }
-      if (dataUrl) {
-        sendResponse({ dataUrl: dataUrl });
-      } else {
-        
-        sendResponse({ error: "截图成功但未返回dataUrl" });
-      }
-    });
+    // Firefox专用截图处理
+    handleCaptureTab(sendResponse);
     return true; // Indicates that the response is sent asynchronously
   } else if (request.action === "extractAndAnalyze") {
     // 处理文字提取和AI分析请求
@@ -364,6 +358,113 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
+// Firefox专用截图处理函数
+async function handleCaptureTab(sendResponse) {
+  try {
+    // 获取当前活动标签页
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs || tabs.length === 0) {
+      sendResponse({ 
+        error: "无法获取当前标签页", 
+        details: "没有找到活动标签页" 
+      });
+      return;
+    }
+
+    const activeTab = tabs[0];
+    
+    // 检查是否为受限页面
+    if (isRestrictedUrl(activeTab.url)) {
+      sendResponse({ 
+        error: "无法截图受限页面", 
+        details: "当前页面为浏览器系统页面，无法进行截图" 
+      });
+      return;
+    }
+
+    // 检查标签页是否完全加载
+    if (activeTab.status !== 'complete') {
+      console.log('页面未完全加载，等待完成...');
+      // 等待页面加载完成
+      await waitForTabComplete(activeTab.id);
+      
+      // Firefox中页面加载完成后还需要额外等待
+      console.log('页面加载完成，额外等待渲染...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } else {
+      // 即使页面已完成加载，也稍等一下确保渲染完成
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    // 执行截图
+    chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
+      if (chrome.runtime.lastError) {
+        console.error('截图失败:', chrome.runtime.lastError.message);
+        
+        // 根据错误类型提供更具体的错误信息
+        let errorMessage = "截图失败";
+        let errorDetails = chrome.runtime.lastError.message;
+        
+        if (errorDetails.includes("permission")) {
+          errorMessage = "权限不足";
+          errorDetails = "需要activeTab权限才能截图，请确保从扩展图标或右键菜单触发";
+        } else if (errorDetails.includes("tab")) {
+          errorMessage = "标签页无效";
+          errorDetails = "当前标签页可能已关闭或无法访问";
+        }
+        
+        sendResponse({ error: errorMessage, details: errorDetails });
+        return;
+      }
+      
+      if (dataUrl) {
+        console.log('截图成功，数据长度:', dataUrl.length);
+        sendResponse({ dataUrl: dataUrl });
+      } else {
+        console.error('截图返回空数据');
+        sendResponse({ error: "截图失败", details: "截图成功但未返回数据" });
+      }
+    });
+    
+  } catch (error) {
+    console.error('截图处理异常:', error);
+    sendResponse({ 
+      error: "截图处理异常", 
+      details: error.message 
+    });
+  }
+}
+
+// 等待标签页加载完成
+function waitForTabComplete(tabId, timeout = 5000) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    
+    const checkTab = () => {
+      chrome.tabs.get(tabId, (tab) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        
+        if (tab.status === 'complete') {
+          resolve();
+          return;
+        }
+        
+        if (Date.now() - startTime > timeout) {
+          resolve(); // 超时也继续，可能页面部分加载也能截图
+          return;
+        }
+        
+        setTimeout(checkTab, 100);
+      });
+    };
+    
+    checkTab();
+  });
+}
+
 // 处理取消分析请求
 async function handleCancelAnalysis(request, sender, sendResponse) {
   const responseId = request.responseId;
@@ -391,23 +492,29 @@ async function handleCancelAnalysis(request, sender, sendResponse) {
 // 处理文字提取和AI分析
 async function handleExtractAndAnalyze(request, sender, sendResponse) {
   try {
+    console.log('开始处理文字提取和AI分析请求:', request);
+    
     // 获取当前活动标签页ID
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tabs || tabs.length === 0 || !tabs[0].id) {
+      console.error('无法获取当前标签页');
       sendResponse({ success: false, error: "无法获取当前标签页" });
       return;
     }
     
     const tabId = tabs[0].id;
+    const tabUrl = tabs[0].url;
+    console.log('当前标签页信息:', { tabId, tabUrl, status: tabs[0].status });
     
     // 检查并确保内容脚本已加载
     try {
       await ensureContentScriptLoaded(tabId);
+      console.log('内容脚本确认已加载');
     } catch (error) {
-      
+      console.error('内容脚本加载失败:', error);
       sendResponse({ 
         success: false, 
-        error: "内容脚本加载失败，请刷新页面后重试" 
+        error: "内容脚本加载失败: " + error.message + "。请刷新页面后重试。" 
       });
       return;
     }
@@ -467,40 +574,120 @@ async function handleExtractAndAnalyze(request, sender, sendResponse) {
   }
 }
 
-// 确保内容脚本已加载
+// 确保内容脚本已加载（Firefox专用）
 async function ensureContentScriptLoaded(tabId) {
   try {
-    // 尝试发送ping消息检查内容脚本是否响应
-    await new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
+    console.log('检查内容脚本是否已加载，标签页ID:', tabId);
+    
+    // 首先检查标签页是否有效
+    const tab = await new Promise((resolve, reject) => {
+      chrome.tabs.get(tabId, (tab) => {
         if (chrome.runtime.lastError) {
-          // 内容脚本未加载，尝试注入
-          inject_content_script(tabId)
-            .then(resolve)
-            .catch(reject);
+          reject(new Error(chrome.runtime.lastError.message));
         } else {
-          resolve();
+          resolve(tab);
         }
       });
     });
+    
+    console.log('标签页信息:', { url: tab.url, status: tab.status });
+    
+    // 检查是否为受限页面
+    if (isRestrictedUrl(tab.url)) {
+      throw new Error("无法在受限页面中注入内容脚本");
+    }
+    
+    // 等待页面加载完成
+    if (tab.status !== 'complete') {
+      console.log('等待页面加载完成...');
+      await waitForTabComplete(tabId, 10000); // 增加超时时间
+    }
+    
+    // 多次尝试检查内容脚本是否响应
+    let attempts = 0;
+    const maxAttempts = 5;
+    let isLoaded = false;
+    
+    while (attempts < maxAttempts && !isLoaded) {
+      attempts++;
+      console.log(`第${attempts}次尝试检查内容脚本...`);
+      
+      isLoaded = await new Promise((resolve) => {
+        chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.log(`第${attempts}次检查失败:`, chrome.runtime.lastError.message);
+            resolve(false);
+          } else {
+            console.log(`第${attempts}次检查成功:`, response);
+            resolve(true);
+          }
+        });
+      });
+      
+      if (!isLoaded && attempts < maxAttempts) {
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    if (!isLoaded) {
+      throw new Error("内容脚本未响应，可能页面尚未完全加载或存在兼容性问题");
+    }
+    
+    console.log('内容脚本确认可用');
+    
   } catch (error) {
+    console.error('确保内容脚本加载失败:', error);
     throw new Error("无法加载内容脚本: " + error.message);
   }
 }
 
-// 注入内容脚本
+// 注入内容脚本（Firefox专用）
 async function inject_content_script(tabId) {
   try {
-    await chrome.scripting.executeScript({
+    console.log('开始注入内容脚本到标签页:', tabId);
+    
+    // 检查是否已经有内容脚本在运行（通过manifest声明的）
+    // 如果有，就不需要再次注入
+    const isAlreadyInjected = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      });
+    });
+    
+    if (isAlreadyInjected) {
+      console.log('内容脚本已通过manifest注入，无需重复注入');
+      return;
+    }
+    
+    console.log('通过scripting API注入内容脚本...');
+    
+    // Firefox中使用scripting API注入
+    const results = await chrome.scripting.executeScript({
       target: { tabId: tabId },
       files: ['content_script.js']
     });
     
-    // 等待内容脚本初始化
-    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log('内容脚本注入结果:', results);
+    
+    // 等待内容脚本初始化（Firefox需要更长时间）
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
   } catch (error) {
-    throw new Error("脚本注入失败: " + error.message);
+    console.error('脚本注入异常:', error);
+    
+    // 提供更详细的错误信息
+    if (error.message.includes('Cannot access')) {
+      throw new Error("无法访问此页面，可能是受限页面或权限不足");
+    } else if (error.message.includes('No tab with id')) {
+      throw new Error("标签页不存在或已关闭");
+    } else {
+      throw new Error("脚本注入失败: " + error.message);
+    }
   }
 }
 

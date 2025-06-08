@@ -1,4 +1,23 @@
+// Firefox专用内容脚本初始化
+console.log('Broodmother内容脚本开始加载...');
+
 const OVERLAY_ID = 'aiTranslatorOverlay';
+
+// 检查运行环境
+const isFirefox = typeof browser !== 'undefined';
+console.log('运行环境:', isFirefox ? 'Firefox' : 'Chrome');
+
+// 确保在页面完全加载后初始化
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeContentScript);
+} else {
+  initializeContentScript();
+}
+
+function initializeContentScript() {
+  console.log('内容脚本初始化完成，页面状态:', document.readyState);
+  console.log('页面URL:', window.location.href);
+}
 
 // 获取当前主题设置
 function getCurrentTheme(callback) {

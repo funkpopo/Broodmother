@@ -8,8 +8,7 @@
     "tabs",
     "scripting",
     "storage",
-    "contextMenus",
-    "sidePanel"
+    "contextMenus"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -25,9 +24,15 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "scripts": ["background.js"]
   },
-  "side_panel": {
-    "default_path": "sidepanel.html"
+  "sidebar_action": {
+    "default_title": "Broodmother Sidebar",
+    "default_panel": "sidepanel.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "broodmother@ai-translator.extension"
+    }
   }
 }

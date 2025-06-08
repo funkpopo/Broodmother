@@ -2,3 +2,8 @@ issues
 .codelf
 
 Broodmother.pem
+*.xpi
+*.crx
+*.zip
+*.rar
+*.pem
