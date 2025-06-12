@@ -29,6 +29,7 @@ const zh = {
   'add_config': '添加配置',
   'export_configs': '导出配置',
   'import_configs': '导入配置',
+  'test_config': '测试',
   'use_config': '使用',
   'edit_config': '编辑',
   'delete_config': '删除',
@@ -43,6 +44,9 @@ const zh = {
   'configs_imported': '配置导入成功',
   'invalid_config_data': '无效的配置数据',
   'no_configs_to_export': '没有配置可导出',
+  'testing_api': '测试中...',
+  'test_success': 'API测试成功',
+  'test_failed': 'API测试失败',
   
   // popup界面 - 错误消息
   'enter_config_name': '请输入配置名称',
@@ -110,7 +114,71 @@ const zh = {
   'error': '错误',
   'success': '成功',
   'warning': '警告',
-  'info': '信息'
+  'info': '信息',
+
+  // 提示词管理
+  'prompts': '提示词',
+  'prompt_management': '提示词管理',
+  'prompt_name': '提示词名称',
+  'prompt_content': '提示词内容',
+  'prompt_category': '分类',
+  'prompt_temperature': '温度值',
+  'add_prompt': '添加提示词',
+  'edit_prompt': '编辑提示词',
+  'delete_prompt': '删除提示词',
+  'save_prompt': '保存提示词',
+  'cancel_edit': '取消编辑',
+  'set_as_default': '设为默认',
+  'default_prompt': '默认提示词',
+  'custom_prompt': '自定义提示词',
+  'prompt_preview': '预览',
+  'test_prompt': '测试提示词',
+  'export_prompts': '导出提示词',
+  'import_prompts': '导入提示词',
+  'reset_prompts': '重置为默认',
+
+  // 提示词分类
+  'category_analysis': '分析类',
+  'category_summary': '总结类',
+  'category_translation': '翻译类',
+  'category_qa': '问答类',
+  'category_creative': '创意类',
+  'category_custom': '自定义',
+  'all_categories': '全部分类',
+
+  // 提示词变量
+  'available_variables': '可用变量',
+  'variable_content': '内容',
+  'variable_analysis_type': '分析类型',
+  'variable_language': '目标语言',
+  'variable_timestamp': '时间戳',
+  'variable_url': '页面URL',
+  'variable_title': '页面标题',
+  'variable_help': '点击变量名插入到提示词中',
+
+  // 提示词状态消息
+  'prompt_saved': '提示词已保存',
+  'prompt_deleted': '提示词已删除',
+  'prompt_updated': '提示词已更新',
+  'default_prompt_set': '默认提示词已设置',
+  'prompts_exported': '提示词已导出',
+  'prompts_imported': '提示词已导入',
+  'prompts_reset': '提示词已重置为默认',
+  'invalid_prompt_data': '无效的提示词数据',
+  'prompt_name_required': '请输入提示词名称',
+  'prompt_content_required': '请输入提示词内容',
+  'temperature_range_error': '温度值必须在0.0-2.0之间',
+
+  // 提示词模态框
+  'delete_prompt_title': '删除提示词',
+  'delete_prompt_message': '确定要删除这个提示词吗？此操作无法撤销。',
+  'import_prompts_title': '导入提示词',
+  'import_prompts_message': '请粘贴提示词数据（JSON格式）：',
+  'reset_prompts_title': '重置提示词',
+  'reset_prompts_message': '确定要重置为默认提示词吗？这将删除所有自定义提示词。',
+
+  // 温度值说明
+  'temperature_help': '温度值控制AI回复的创造性：0.0-0.3保守准确，0.4-0.7平衡，0.8-2.0创意发散'
 };
 
 // 导出语言包

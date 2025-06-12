@@ -350,6 +350,7 @@
       <div class="tab-container">
         <div class="tabs">
           <div class="tab active" data-tab="configs" data-i18n="config_management">配置管理</div>
+          <div class="tab" data-tab="prompts" data-i18n="prompt_management">提示词管理</div>
           <div class="tab" data-tab="settings" data-i18n="settings">设置</div>
         </div>
       
@@ -381,7 +382,85 @@
           <button id="saveConfigBtn" class="btn-primary" data-i18n="save_config">保存配置</button>
         </div>
       </div>
-      
+
+      <!-- 提示词管理Tab -->
+      <div class="tab-content" id="prompts-tab">
+        <!-- 分类筛选 -->
+        <div class="form-group">
+          <label for="categoryFilter" data-i18n="prompt_category">分类:</label>
+          <select id="categoryFilter">
+            <option value="all" data-i18n="all_categories">全部分类</option>
+            <option value="analysis" data-i18n="category_analysis">分析类</option>
+            <option value="summary" data-i18n="category_summary">总结类</option>
+            <option value="translation" data-i18n="category_translation">翻译类</option>
+            <option value="qa" data-i18n="category_qa">问答类</option>
+            <option value="creative" data-i18n="category_creative">创意类</option>
+            <option value="custom" data-i18n="category_custom">自定义</option>
+          </select>
+        </div>
+
+        <!-- 提示词列表 -->
+        <div class="config-list" id="promptList">
+          <!-- 提示词项将由JS动态生成 -->
+        </div>
+
+        <button id="addPromptBtn" class="btn-primary" data-i18n="add_prompt">添加提示词</button>
+
+        <!-- 提示词编辑表单 -->
+        <div class="form-group" id="promptForm" style="margin-top: 15px; display: none;">
+          <div class="form-group">
+            <label for="promptName" data-i18n="prompt_name">提示词名称:</label>
+            <input type="text" id="promptName" data-i18n-placeholder="prompt_name" placeholder="输入提示词名称">
+          </div>
+          <div class="form-group">
+            <label for="promptCategory" data-i18n="prompt_category">分类:</label>
+            <select id="promptCategory">
+              <option value="analysis" data-i18n="category_analysis">分析类</option>
+              <option value="summary" data-i18n="category_summary">总结类</option>
+              <option value="translation" data-i18n="category_translation">翻译类</option>
+              <option value="qa" data-i18n="category_qa">问答类</option>
+              <option value="creative" data-i18n="category_creative">创意类</option>
+              <option value="custom" data-i18n="category_custom">自定义</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="promptTemperature" data-i18n="prompt_temperature">温度值 (0.0-2.0):</label>
+            <input type="number" id="promptTemperature" min="0" max="2" step="0.1" value="0.7">
+            <small style="display: block; color: #666; margin-top: 5px;" data-i18n="temperature_help">
+              温度值控制AI回复的创造性：0.0-0.3保守准确，0.4-0.7平衡，0.8-2.0创意发散
+            </small>
+          </div>
+          <div class="form-group">
+            <label for="promptContent" data-i18n="prompt_content">提示词内容:</label>
+            <textarea id="promptContent" rows="8" style="width:100%; resize: vertical;"
+                      data-i18n-placeholder="prompt_content" placeholder="输入提示词内容..."></textarea>
+          </div>
+
+          <!-- 可用变量帮助 -->
+          <div class="form-group">
+            <label data-i18n="available_variables">可用变量:</label>
+            <div id="variableHelp" style="margin-top: 5px;">
+              <!-- 变量按钮将由JS动态生成 -->
+            </div>
+            <small style="display: block; color: #666; margin-top: 5px;" data-i18n="variable_help">
+              点击变量名插入到提示词中
+            </small>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button id="savePromptBtn" class="btn-primary" data-i18n="save_prompt">保存提示词</button>
+            <button id="cancelPromptBtn" class="btn-secondary" data-i18n="cancel_edit">取消编辑</button>
+          </div>
+        </div>
+
+        <!-- 提示词操作按钮 -->
+        <div class="action-buttons" style="margin-top: 15px;">
+          <button id="exportPromptsBtn" class="btn-secondary" data-i18n="export_prompts">导出提示词</button>
+          <button id="importPromptsBtn" class="btn-secondary" data-i18n="import_prompts">导入提示词</button>
+          <button id="resetPromptsBtn" class="btn-danger" data-i18n="reset_prompts">重置为默认</button>
+        </div>
+      </div>
+
               <!-- 设置Tab -->
         <div class="tab-content" id="settings-tab">
           <div class="form-group">
@@ -450,10 +529,66 @@
     </div>
   </div>
 
+  <!-- 删除提示词确认弹窗 -->
+  <div class="modal" id="deletePromptModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="delete_prompt_title">删除提示词</h3>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p data-i18n="delete_prompt_message">确定要删除这个提示词吗？此操作无法撤销。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancelDeletePromptBtn" data-i18n="cancel">取消</button>
+        <button class="btn-danger" id="confirmDeletePromptBtn" data-i18n="delete">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导入提示词弹窗 -->
+  <div class="modal" id="importPromptsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="import_prompts_title">导入提示词</h3>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="importPromptsText" data-i18n="import_prompts_message">粘贴提示词数据:</label>
+          <textarea id="importPromptsText" rows="5" style="width:100%;"
+                    data-i18n-placeholder="import_config_placeholder" placeholder="在此粘贴提示词数据..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancelImportPromptsBtn" data-i18n="cancel">取消</button>
+        <button class="btn-primary" id="confirmImportPromptsBtn" data-i18n="import">导入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重置提示词确认弹窗 -->
+  <div class="modal" id="resetPromptsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="reset_prompts_title">重置提示词</h3>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p data-i18n="reset_prompts_message">确定要重置为默认提示词吗？这将删除所有自定义提示词。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancelResetPromptsBtn" data-i18n="cancel">取消</button>
+        <button class="btn-danger" id="confirmResetPromptsBtn" data-i18n="confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 引入语言包和国际化管理器 -->
   <script src="locales/zh.js"></script>
   <script src="locales/en.js"></script>
   <script src="js/i18n.js"></script>
+  <script src="js/prompt-templates.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
