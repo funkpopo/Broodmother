@@ -114,7 +114,71 @@ const en = {
   'error': 'Error',
   'success': 'Success',
   'warning': 'Warning',
-  'info': 'Information'
+  'info': 'Information',
+
+  // Prompt management
+  'prompts': 'Prompts',
+  'prompt_management': 'Prompt Management',
+  'prompt_name': 'Prompt Name',
+  'prompt_content': 'Prompt Content',
+  'prompt_category': 'Category',
+  'prompt_temperature': 'Temperature',
+  'add_prompt': 'Add Prompt',
+  'edit_prompt': 'Edit Prompt',
+  'delete_prompt': 'Delete Prompt',
+  'save_prompt': 'Save Prompt',
+  'cancel_edit': 'Cancel Edit',
+  'set_as_default': 'Set as Default',
+  'default_prompt': 'Default Prompt',
+  'custom_prompt': 'Custom Prompt',
+  'prompt_preview': 'Preview',
+  'test_prompt': 'Test Prompt',
+  'export_prompts': 'Export Prompts',
+  'import_prompts': 'Import Prompts',
+  'reset_prompts': 'Reset to Default',
+
+  // Prompt categories
+  'category_analysis': 'Analysis',
+  'category_summary': 'Summary',
+  'category_translation': 'Translation',
+  'category_qa': 'Q&A',
+  'category_creative': 'Creative',
+  'category_custom': 'Custom',
+  'all_categories': 'All Categories',
+
+  // Prompt variables
+  'available_variables': 'Available Variables',
+  'variable_content': 'Content',
+  'variable_analysis_type': 'Analysis Type',
+  'variable_language': 'Target Language',
+  'variable_timestamp': 'Timestamp',
+  'variable_url': 'Page URL',
+  'variable_title': 'Page Title',
+  'variable_help': 'Click variable name to insert into prompt',
+
+  // Prompt status messages
+  'prompt_saved': 'Prompt saved',
+  'prompt_deleted': 'Prompt deleted',
+  'prompt_updated': 'Prompt updated',
+  'default_prompt_set': 'Default prompt set',
+  'prompts_exported': 'Prompts exported',
+  'prompts_imported': 'Prompts imported',
+  'prompts_reset': 'Prompts reset to default',
+  'invalid_prompt_data': 'Invalid prompt data',
+  'prompt_name_required': 'Please enter prompt name',
+  'prompt_content_required': 'Please enter prompt content',
+  'temperature_range_error': 'Temperature must be between 0.0-2.0',
+
+  // Prompt modals
+  'delete_prompt_title': 'Delete Prompt',
+  'delete_prompt_message': 'Are you sure you want to delete this prompt? This action cannot be undone.',
+  'import_prompts_title': 'Import Prompts',
+  'import_prompts_message': 'Please paste prompt data (JSON format):',
+  'reset_prompts_title': 'Reset Prompts',
+  'reset_prompts_message': 'Are you sure you want to reset to default prompts? This will delete all custom prompts.',
+
+  // Temperature help
+  'temperature_help': 'Temperature controls AI creativity: 0.0-0.3 conservative, 0.4-0.7 balanced, 0.8-2.0 creative'
 };
 
 // Export language pack

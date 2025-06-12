@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>提示词系统测试</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .test-result {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 3px;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    button {
+      padding: 8px 15px;
+      margin: 5px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background-color: #007bff;
+      color: white;
+    }
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Broodmother 提示词系统测试</h1>
+  
+  <div class="test-section">
+    <h2>1. 默认提示词模板测试</h2>
+    <button class="btn-primary" onclick="testDefaultTemplates()">测试默认模板</button>
+    <div id="defaultTemplatesResult"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>2. 变量替换测试</h2>
+    <button class="btn-primary" onclick="testVariableReplacement()">测试变量替换</button>
+    <div id="variableReplacementResult"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>3. 提示词分类测试</h2>
+    <button class="btn-primary" onclick="testCategories()">测试分类系统</button>
+    <div id="categoriesResult"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>4. 自定义提示词测试</h2>
+    <textarea id="customPrompt" placeholder="输入自定义提示词内容，可以使用变量如 {content}, {analysisType} 等"></textarea>
+    <br>
+    <button class="btn-primary" onclick="testCustomPrompt()">测试自定义提示词</button>
+    <div id="customPromptResult"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>5. 导入导出测试</h2>
+    <button class="btn-secondary" onclick="testExport()">测试导出</button>
+    <button class="btn-secondary" onclick="testImport()">测试导入</button>
+    <div id="importExportResult"></div>
+  </div>
+
+  <!-- 引入必要的脚本 -->
+  <script src="js/prompt-templates.js"></script>
+  
+  <script>
+    // 模拟变量替换函数
+    function replacePromptVariables(promptContent, variables) {
+      let result = promptContent;
+      
+      Object.keys(variables).forEach(key => {
+        const placeholder = `{${key}}`;
+        const value = variables[key] || '';
+        result = result.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+      });
+      
+      return result;
+    }
+    
+    function showResult(elementId, message, isSuccess = true) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = `<div class="test-result ${isSuccess ? 'success' : 'error'}">${message}</div>`;
+    }
+    
+    function testDefaultTemplates() {
+      try {
+        if (typeof DEFAULT_PROMPT_TEMPLATES === 'undefined') {
+          showResult('defaultTemplatesResult', '错误：DEFAULT_PROMPT_TEMPLATES 未定义', false);
+          return;
+        }
+        
+        const templates = DEFAULT_PROMPT_TEMPLATES;
+        let results = [`找到 ${templates.length} 个默认模板：`];
+        
+        templates.forEach((template, index) => {
+          results.push(`${index + 1}. ${template.name} (${template.category}) - Temperature: ${template.temperature}`);
+        });
+        
+        // 检查是否有默认模板
+        const defaultTemplate = templates.find(t => t.isDefault);
+        if (defaultTemplate) {
+          results.push(`默认模板：${defaultTemplate.name}`);
+        }
+        
+        showResult('defaultTemplatesResult', results.join('<br>'));
+      } catch (error) {
+        showResult('defaultTemplatesResult', `错误：${error.message}`, false);
+      }
+    }
+    
+    function testVariableReplacement() {
+      try {
+        const testPrompt = "分析以下{analysisType}的内容：{content}。当前时间：{timestamp}";
+        const variables = {
+          content: "这是测试内容",
+          analysisType: "选中区域",
+          timestamp: new Date().toLocaleString()
+        };
+        
+        const result = replacePromptVariables(testPrompt, variables);
+        
+        showResult('variableReplacementResult', 
+          `原始提示词：${testPrompt}<br><br>` +
+          `替换后：${result}<br><br>` +
+          `变量：${JSON.stringify(variables, null, 2)}`
+        );
+      } catch (error) {
+        showResult('variableReplacementResult', `错误：${error.message}`, false);
+      }
+    }
+    
+    function testCategories() {
+      try {
+        if (typeof PROMPT_CATEGORIES === 'undefined') {
+          showResult('categoriesResult', '错误：PROMPT_CATEGORIES 未定义', false);
+          return;
+        }
+        
+        const categories = PROMPT_CATEGORIES;
+        let results = ['可用分类：'];
+        
+        Object.keys(categories).forEach(key => {
+          const category = categories[key];
+          results.push(`${key}: ${category.name} (${category.nameEn}) - ${category.description}`);
+        });
+        
+        showResult('categoriesResult', results.join('<br>'));
+      } catch (error) {
+        showResult('categoriesResult', `错误：${error.message}`, false);
+      }
+    }
+    
+    function testCustomPrompt() {
+      try {
+        const customPrompt = document.getElementById('customPrompt').value;
+        if (!customPrompt.trim()) {
+          showResult('customPromptResult', '请输入自定义提示词内容', false);
+          return;
+        }
+        
+        const variables = {
+          content: "这是用户选择的文本内容，包含一些重要信息需要分析。",
+          analysisType: "选中区域",
+          language: "Chinese",
+          timestamp: new Date().toLocaleString(),
+          url: "https://example.com/test-page",
+          title: "测试页面标题"
+        };
+        
+        const result = replacePromptVariables(customPrompt, variables);
+        
+        showResult('customPromptResult', 
+          `自定义提示词：<br>${customPrompt}<br><br>` +
+          `变量替换后：<br>${result}`
+        );
+      } catch (error) {
+        showResult('customPromptResult', `错误：${error.message}`, false);
+      }
+    }
+    
+    function testExport() {
+      try {
+        if (typeof DEFAULT_PROMPT_TEMPLATES === 'undefined') {
+          showResult('importExportResult', '错误：DEFAULT_PROMPT_TEMPLATES 未定义', false);
+          return;
+        }
+        
+        const exportData = {
+          prompts: DEFAULT_PROMPT_TEMPLATES,
+          exportDate: new Date().toISOString(),
+          version: '1.0'
+        };
+        
+        const exportJson = JSON.stringify(exportData, null, 2);
+        
+        // 创建下载链接
+        const blob = new Blob([exportJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'broodmother-prompts-test.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showResult('importExportResult', '导出成功！文件已下载。');
+      } catch (error) {
+        showResult('importExportResult', `导出错误：${error.message}`, false);
+      }
+    }
+    
+    function testImport() {
+      try {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = function(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            try {
+              const importData = JSON.parse(e.target.result);
+              
+              if (!importData.prompts || !Array.isArray(importData.prompts)) {
+                showResult('importExportResult', '导入失败：无效的文件格式', false);
+                return;
+              }
+              
+              showResult('importExportResult', 
+                `导入成功！<br>` +
+                `找到 ${importData.prompts.length} 个提示词<br>` +
+                `导出日期：${importData.exportDate || '未知'}<br>` +
+                `版本：${importData.version || '未知'}`
+              );
+            } catch (error) {
+              showResult('importExportResult', `导入错误：${error.message}`, false);
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      } catch (error) {
+        showResult('importExportResult', `导入错误：${error.message}`, false);
+      }
+    }
+    
+    // 页面加载时自动运行基础测试
+    window.onload = function() {
+      testDefaultTemplates();
+      testCategories();
+    };
+  </script>
+</body>
+</html>

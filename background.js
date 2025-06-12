@@ -1,3 +1,17 @@
+// 提示词变量替换函数
+function replacePromptVariables(promptContent, variables) {
+  let result = promptContent;
+
+  // 替换所有变量
+  Object.keys(variables).forEach(key => {
+    const placeholder = `{${key}}`;
+    const value = variables[key] || '';
+    result = result.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+  });
+
+  return result;
+}
+
 // Create context menu item on installation
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -506,8 +520,8 @@ async function inject_content_script(tabId) {
 
 // 执行AI分析
 async function performAIAnalysis(text, isSelection, sendResponse) {
-  // 获取当前配置
-  chrome.storage.sync.get(['configs', 'currentConfigId'], async (settings) => {
+  // 获取当前配置和提示词
+  chrome.storage.sync.get(['configs', 'currentConfigId', 'prompts', 'currentPromptId'], async (settings) => {
     if (chrome.runtime.lastError) {
       sendResponse({ 
         success: false, 
@@ -518,24 +532,37 @@ async function performAIAnalysis(text, isSelection, sendResponse) {
 
     const configs = settings.configs || [];
     const currentConfigId = settings.currentConfigId;
-    
+    const prompts = settings.prompts || [];
+    const currentPromptId = settings.currentPromptId;
+
     // 检查是否有配置
     if (!configs || configs.length === 0) {
-      sendResponse({ 
-        success: false, 
-        error: '未配置AI API信息，请在扩展弹出窗口中设置' 
+      sendResponse({
+        success: false,
+        error: '未配置AI API信息，请在扩展弹出窗口中设置'
       });
       return;
     }
-    
+
     // 获取当前配置
     const currentConfig = configs.find(config => config.id === currentConfigId);
     if (!currentConfig) {
-      sendResponse({ 
-        success: false, 
-        error: '当前配置无效，请在扩展弹出窗口中重新设置' 
+      sendResponse({
+        success: false,
+        error: '当前配置无效，请在扩展弹出窗口中重新设置'
       });
       return;
+    }
+
+    // 获取当前提示词
+    let currentPrompt = null;
+    if (currentPromptId) {
+      currentPrompt = prompts.find(prompt => prompt.id === currentPromptId);
+    }
+
+    // 如果没有找到当前提示词，使用默认提示词或第一个提示词
+    if (!currentPrompt && prompts.length > 0) {
+      currentPrompt = prompts.find(prompt => prompt.isDefault) || prompts[0];
     }
     
     const { apiUrl, apiKey, modelName, name } = currentConfig;
@@ -549,8 +576,22 @@ async function performAIAnalysis(text, isSelection, sendResponse) {
     }
 
     // 构建分析提示词
-    const analysisType = isSelection ? "选中区域" : "整个页面";
-    const prompt = `请分析以下来自网页${analysisType}的文字内容，并以Markdown格式提供有用的见解、总结或建议：
+    let prompt;
+
+    if (currentPrompt && currentPrompt.content) {
+      // 使用自定义提示词并进行变量替换
+      prompt = replacePromptVariables(currentPrompt.content, {
+        content: text,
+        analysisType: isSelection ? "选中区域" : "整个页面",
+        language: "Chinese", // 可以从设置中获取
+        timestamp: new Date().toLocaleString(),
+        url: "", // 可以从标签页信息获取
+        title: "" // 可以从标签页信息获取
+      });
+    } else {
+      // 使用默认提示词（向后兼容）
+      const analysisType = isSelection ? "选中区域" : "整个页面";
+      prompt = `请分析以下来自网页${analysisType}的文字内容，并以Markdown格式提供有用的见解、总结或建议：
 
 ${text}
 
@@ -576,6 +617,7 @@ ${text}
 （一句话总结核心价值）
 
 请确保使用标准Markdown语法，包括标题(##)、列表(-)、粗体(**text**)等格式。`;
+    }
 
     // 构建请求体（支持流式输出）
     const requestBody = {
@@ -588,6 +630,11 @@ ${text}
       ],
       stream: true
     };
+
+    // 如果有自定义提示词，使用其temperature值
+    if (currentPrompt && typeof currentPrompt.temperature === 'number') {
+      requestBody.temperature = currentPrompt.temperature;
+    }
 
     try {
       const response = await fetch(apiUrl, {
