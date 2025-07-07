@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const themeOptions = document.querySelectorAll('.theme-option');
   const tabs = document.querySelectorAll('.tab');
   const tabContents = document.querySelectorAll('.tab-content');
+  const configForm = document.getElementById('configForm');
 
   // 提示词相关DOM元素
   const promptList = document.getElementById('promptList');
@@ -386,6 +387,9 @@ document.addEventListener('DOMContentLoaded', () => {
       apiUrlInput.value = config.apiUrl;
       apiKeyInput.value = config.apiKey;
       modelNameInput.value = config.modelName;
+      if (configForm) {
+        configForm.style.display = 'block';
+      }
       
       // 高亮显示当前选中的配置
       const configItems = configList.querySelectorAll('.config-item');
@@ -1161,6 +1165,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addConfigBtn) {
       addConfigBtn.addEventListener('click', () => {
         clearConfigForm();
+        if (configForm) {
+          configForm.style.display = 'block';
+        }
       });
       
     } else {

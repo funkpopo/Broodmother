@@ -6,47 +6,40 @@
   <style>
     :root {
       /* 亮色主题 */
-      --light-bg: #ffffff;
+      --light-bg: #f8f9fa;
       --light-text: #212529;
       --light-border: #dee2e6;
-      --light-input-bg: #f8f9fa;
+      --light-input-bg: #ffffff;
       --light-btn-primary: #0d6efd;
       --light-btn-text: #ffffff;
+      --light-shadow: rgba(0, 0, 0, 0.1);
       
       /* 暗色主题 */
       --dark-bg: #212529;
-      --dark-text: #f8f9fa;
+      --dark-text: #e9ecef;
       --dark-border: #495057;
       --dark-input-bg: #343a40;
       --dark-btn-primary: #0d6efd;
       --dark-btn-text: #ffffff;
+      --dark-shadow: rgba(255, 255, 255, 0.1);
     }
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      width: 350px;
-      padding: 15px;
+      width: 380px;
+      padding: 16px;
       margin: 0;
-      transition: all 0.3s ease;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
     
-    /* 亮色主题样式 */
     body.light-theme {
       background-color: var(--light-bg);
       color: var(--light-text);
     }
     
-    /* 暗色主题样式 */
     body.dark-theme {
       background-color: var(--dark-bg);
       color: var(--dark-text);
-    }
-    
-    /* 自动主题样式 - 会在JS中根据浏览器主题动态切换 */
-    body.auto-theme {
-      /* 默认为亮色，JS会处理切换 */
-      background-color: var(--light-bg);
-      color: var(--light-text);
     }
     
     .container {
@@ -55,20 +48,28 @@
     }
     
     .form-group {
-      margin-bottom: 15px;
+      margin-bottom: 16px;
     }
     
     label {
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 6px;
       font-weight: 500;
+      font-size: 0.9rem;
     }
     
-    input, select {
+    input, select, textarea {
       width: 100%;
-      padding: 8px 10px;
-      border-radius: 4px;
-      transition: all 0.2s;
+      padding: 10px 12px;
+      border-radius: 6px;
+      box-sizing: border-box;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--light-btn-primary);
+      box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
     }
     
     /* 亮色主题表单控件 */
@@ -84,13 +85,19 @@
       border: 1px solid var(--dark-border);
       color: var(--dark-text);
     }
+
+    .dark-theme input:focus, .dark-theme select:focus, .dark-theme textarea:focus {
+      border-color: var(--dark-btn-primary);
+      box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+    }
     
     /* 按钮基础样式 */
     button {
-      padding: 8px 12px;
-      border-radius: 4px;
+      padding: 10px 15px;
+      border-radius: 6px;
       border: none;
       cursor: pointer;
+      font-weight: 500;
       transition: all 0.2s;
       position: relative;
       z-index: 1;
@@ -108,6 +115,7 @@
     .btn-primary {
       background-color: var(--light-btn-primary);
       color: var(--light-btn-text);
+      box-shadow: 0 2px 4px var(--light-shadow);
     }
     
     .btn-secondary {
@@ -121,42 +129,59 @@
     }
     
     button:hover {
-      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px var(--light-shadow);
+    }
+
+    .dark-theme button:hover {
+      box-shadow: 0 4px 8px var(--dark-shadow);
     }
     
     /* 状态消息 */
     #statusArea {
-      margin-top: 15px;
-      min-height: 20px;
-      padding: 8px;
-      border-radius: 4px;
+      margin-top: 16px;
+      min-height: 22px;
+      padding: 10px;
+      border-radius: 6px;
       text-align: center;
       transition: all 0.3s ease;
+      font-size: 0.9rem;
     }
     
     /* 配置列表样式 */
     .config-list {
-      margin-bottom: 15px;
-      max-height: 150px;
+      margin-bottom: 16px;
+      max-height: 160px;
       overflow-y: auto;
-      border: 1px solid #dee2e6;
-      border-radius: 4px;
+      border: 1px solid var(--light-border);
+      border-radius: 6px;
+      background-color: var(--light-input-bg);
+    }
+
+    .dark-theme .config-list {
+      border-color: var(--dark-border);
+      background-color: var(--dark-input-bg);
     }
     
     .config-item {
-      padding: 8px 12px;
-      border-bottom: 1px solid #dee2e6;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--light-border);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      transition: background-color 0.2s;
     }
-    
-    .config-item:last-child {
-      border-bottom: none;
+
+    .dark-theme .config-item {
+      border-bottom: 1px solid var(--dark-border);
     }
     
     .config-item.active {
       background-color: rgba(13, 110, 253, 0.15);
+    }
+
+    .dark-theme .config-item.active {
+      background-color: rgba(13, 110, 253, 0.25);
     }
     
     /* 顶部菜单栏 */
@@ -164,24 +189,36 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 16px;
+    }
+
+    .top-bar h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin: 0;
     }
     
     .theme-selector {
       display: flex;
-      gap: 5px;
+      gap: 8px;
     }
     
     .theme-option {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       cursor: pointer;
-      border: 2px solid transparent;
+      border: 2px solid var(--light-border);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .dark-theme .theme-option {
+      border: 2px solid var(--dark-border);
     }
     
     .theme-option.active {
       border-color: var(--light-btn-primary);
+      transform: scale(1.1);
     }
     
     .light-option {
@@ -204,77 +241,98 @@
     
     .language-btn {
       background: none;
-      border: 1px solid var(--light-border);
-      border-radius: 4px;
-      padding: 4px 8px;
+      border-radius: 6px;
+      padding: 5px 10px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       transition: all 0.2s;
-      min-width: 30px;
-      height: 24px;
+      min-width: 32px;
+      height: 28px;
     }
     
     .light-theme .language-btn {
       background-color: var(--light-input-bg);
-      border-color: var(--light-border);
+      border: 1px solid var(--light-border);
       color: var(--light-text);
     }
     
     .dark-theme .language-btn {
       background-color: var(--dark-input-bg);
-      border-color: var(--dark-border);
+      border: 1px solid var(--dark-border);
       color: var(--dark-text);
     }
     
     .language-btn:hover {
-      background-color: var(--light-btn-primary);
-      color: white;
+      border-color: var(--light-btn-primary);
+      color: var(--light-btn-primary);
     }
     
     .dark-theme .language-btn:hover {
-      background-color: var(--dark-btn-primary);
-      color: white;
+      border-color: var(--light-btn-primary);
+      color: var(--light-btn-primary);
     }
     
     /* Tab切换样式 */
     .tab-container {
-      margin-bottom: 15px;
+      margin-bottom: 16px;
     }
     
     .tabs {
       display: flex;
-      border-bottom: 1px solid #dee2e6;
+      border-bottom: 1px solid var(--light-border);
+    }
+
+    .dark-theme .tabs {
+      border-bottom: 1px solid var(--dark-border);
     }
     
     .tab {
-      padding: 8px 15px;
+      padding: 10px 16px;
       cursor: pointer;
-      border-bottom: 2px solid transparent;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px; /* 让边框重叠 */
+      transition: all 0.2s;
+      font-size: 0.95rem;
+      color: #6c757d;
+    }
+
+    .dark-theme .tab {
+      color: #adb5bd;
     }
     
     .tab.active {
       border-bottom-color: var(--light-btn-primary);
-      font-weight: 500;
+      font-weight: 600;
+      color: var(--light-text);
     }
     
+    .dark-theme .tab.active {
+      color: var(--dark-text);
+    }
+
+    .tab:hover {
+      background-color: rgba(0,0,0,0.03);
+    }
+    .dark-theme .tab:hover {
+      background-color: rgba(255,255,255,0.05);
+    }
+
     .tab-content {
       display: none;
-      padding: 15px 0;
+      padding: 16px 2px;
     }
-    
+
     .tab-content.active {
       display: block;
     }
     
-    /* 导入导出按钮 */
     .action-buttons {
       display: flex;
       gap: 10px;
-      margin-top: 15px;
+      margin-top: 16px;
     }
     
-    /* 弹窗样式 */
     .modal {
       display: none;
       position: fixed;
@@ -282,40 +340,54 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: rgba(0, 0, 0, 0.4);
       z-index: 1000;
       justify-content: center;
       align-items: center;
+      backdrop-filter: blur(4px);
     }
     
     .modal-content {
-      background-color: white;
-      padding: 20px;
+      padding: 24px;
       border-radius: 8px;
-      width: 80%;
-      max-width: 300px;
+      width: 90%;
+      max-width: 320px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     }
     
     .dark-theme .modal-content {
-      background-color: var(--dark-bg);
+      background-color: var(--dark-input-bg);
       color: var(--dark-text);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
     }
     
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
     }
     
     .modal-close {
       cursor: pointer;
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       font-weight: 700;
+      line-height: 1;
+      opacity: 0.5;
+    }
+
+    .modal-close:hover {
+      opacity: 1;
     }
     
     .modal-body {
-      margin-bottom: 15px;
+      margin-bottom: 20px;
+      font-size: 0.95rem;
     }
     
     .modal-footer {
@@ -333,7 +405,7 @@
       <div style="display: flex; gap: 15px; align-items: center;">
         <!-- 语言切换器 -->
         <div class="language-selector">
-          <button id="languageToggle" class="language-btn" title="Switch Language">
+          <button id="languageToggle" class="language-btn" data-i18n-title="switch_language" title="切换语言">
             <span id="languageLabel">中</span>
           </button>
         </div>
@@ -346,50 +418,77 @@
       </div>
     </div>
 
-          <!-- Tab切换 -->
-      <div class="tab-container">
-        <div class="tabs">
-          <div class="tab active" data-tab="configs" data-i18n="config_management">配置管理</div>
-          <div class="tab" data-tab="prompts" data-i18n="prompt_management">提示词管理</div>
-          <div class="tab" data-tab="settings" data-i18n="settings">设置</div>
-        </div>
+    <!-- Tab切换 -->
+    <div class="tab-container">
+      <div class="tabs">
+        <div class="tab active" data-tab="configs" data-i18n="config_management">配置管理</div>
+        <div class="tab" data-tab="prompts" data-i18n="prompt_management">提示词管理</div>
+        <div class="tab" data-tab="settings" data-i18n="settings">设置</div>
+      </div>
+    
+    <!-- 配置管理Tab -->
+    <div class="tab-content active" id="configs-tab">
+      <div class="config-list" id="configList">
+        <!-- 配置项将由JS动态生成 -->
+      </div>
       
-      <!-- 配置管理Tab -->
-      <div class="tab-content active" id="configs-tab">
-        <div class="config-list" id="configList">
-          <!-- 配置项将由JS动态生成 -->
+      <button id="addConfigBtn" class="btn-primary" data-i18n="add_config">添加新配置</button>
+      
+      <div class="form-group" id="configForm" style="margin-top: 20px; display: none;">
+        <div class="form-group">
+          <label for="configName" data-i18n="config_name">配置名称:</label>
+          <input type="text" id="configName" data-i18n-placeholder="config_name" placeholder="输入配置名称">
         </div>
-        
-        <button id="addConfigBtn" class="btn-primary" data-i18n="add_config">添加新配置</button>
-        
-        <div class="form-group" id="configForm" style="margin-top: 15px;">
-          <div class="form-group">
-            <label for="configName" data-i18n="config_name">配置名称:</label>
-            <input type="text" id="configName" data-i18n-placeholder="config_name" placeholder="输入配置名称">
-          </div>
-          <div class="form-group">
-            <label for="apiUrl" data-i18n="api_url">API URL:</label>
-            <input type="text" id="apiUrl" placeholder="例如：https://api.openai.com/v1/chat/completions">
-          </div>
-          <div class="form-group">
-            <label for="apiKey" data-i18n="api_key">API Key:</label>
-            <input type="password" id="apiKey" data-i18n-placeholder="api_key" placeholder="输入API密钥">
-          </div>
-          <div class="form-group">
-            <label for="modelName" data-i18n="model_name">模型名称:</label>
-            <input type="text" id="modelName" data-i18n-placeholder="model_name" placeholder="例如：gpt-3.5-turbo">
-          </div>
-          <button id="saveConfigBtn" class="btn-primary" data-i18n="save_config">保存配置</button>
+        <div class="form-group">
+          <label for="apiUrl" data-i18n="api_url">API URL:</label>
+          <input type="text" id="apiUrl" placeholder="例如：https://api.openai.com/v1/chat/completions">
+        </div>
+        <div class="form-group">
+          <label for="apiKey" data-i18n="api_key">API Key:</label>
+          <input type="password" id="apiKey" data-i18n-placeholder="api_key" placeholder="输入API密钥">
+        </div>
+        <div class="form-group">
+          <label for="modelName" data-i18n="model_name">模型名称:</label>
+          <input type="text" id="modelName" data-i18n-placeholder="model_name" placeholder="例如：gpt-3.5-turbo">
+        </div>
+        <button id="saveConfigBtn" class="btn-primary" data-i18n="save_config">保存配置</button>
+      </div>
+    </div>
+
+    <!-- 提示词管理Tab -->
+    <div class="tab-content" id="prompts-tab">
+      <!-- 分类筛选 -->
+      <div class="form-group">
+        <label for="categoryFilter" data-i18n="prompt_category">分类:</label>
+        <select id="categoryFilter">
+          <option value="all" data-i18n="all_categories">全部分类</option>
+          <option value="analysis" data-i18n="category_analysis">分析类</option>
+          <option value="summary" data-i18n="category_summary">总结类</option>
+          <option value="translation" data-i18n="category_translation">翻译类</option>
+          <option value="qa" data-i18n="category_qa">问答类</option>
+          <option value="creative" data-i18n="category_creative">创意类</option>
+          <option value="custom" data-i18n="category_custom">自定义</option>
+        </select>
+      </div>
+
+      <!-- 提示词列表 -->
+      <div class="form-group">
+        <div class="config-list" id="promptList">
+          <!-- 提示词项将由JS动态生成 -->
         </div>
       </div>
 
-      <!-- 提示词管理Tab -->
-      <div class="tab-content" id="prompts-tab">
-        <!-- 分类筛选 -->
+      <button id="addPromptBtn" class="btn-primary" data-i18n="add_prompt">添加提示词</button>
+
+      <!-- 提示词编辑表单 -->
+      <div class="form-group" id="promptForm" style="margin-top: 20px; display: none;">
         <div class="form-group">
-          <label for="categoryFilter" data-i18n="prompt_category">分类:</label>
-          <select id="categoryFilter">
-            <option value="all" data-i18n="all_categories">全部分类</option>
+          <label for="promptName" data-i18n="prompt_name">提示词名称:</label>
+          <input type="text" id="promptName" data-i18n-placeholder="prompt_name" placeholder="输入提示词名称">
+        </div>
+        <div class="form-group">
+          <label for="promptCategory" data-i18n="prompt_category">分类:</label>
+          <select id="promptCategory">
             <option value="analysis" data-i18n="category_analysis">分析类</option>
             <option value="summary" data-i18n="category_summary">总结类</option>
             <option value="translation" data-i18n="category_translation">翻译类</option>
@@ -398,197 +497,174 @@
             <option value="custom" data-i18n="category_custom">自定义</option>
           </select>
         </div>
-
-        <!-- 提示词列表 -->
-        <div class="config-list" id="promptList">
-          <!-- 提示词项将由JS动态生成 -->
-        </div>
-
-        <button id="addPromptBtn" class="btn-primary" data-i18n="add_prompt">添加提示词</button>
-
-        <!-- 提示词编辑表单 -->
-        <div class="form-group" id="promptForm" style="margin-top: 15px; display: none;">
-          <div class="form-group">
-            <label for="promptName" data-i18n="prompt_name">提示词名称:</label>
-            <input type="text" id="promptName" data-i18n-placeholder="prompt_name" placeholder="输入提示词名称">
-          </div>
-          <div class="form-group">
-            <label for="promptCategory" data-i18n="prompt_category">分类:</label>
-            <select id="promptCategory">
-              <option value="analysis" data-i18n="category_analysis">分析类</option>
-              <option value="summary" data-i18n="category_summary">总结类</option>
-              <option value="translation" data-i18n="category_translation">翻译类</option>
-              <option value="qa" data-i18n="category_qa">问答类</option>
-              <option value="creative" data-i18n="category_creative">创意类</option>
-              <option value="custom" data-i18n="category_custom">自定义</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="promptTemperature" data-i18n="prompt_temperature">温度值 (0.0-2.0):</label>
-            <input type="number" id="promptTemperature" min="0" max="2" step="0.1" value="0.7">
-            <small style="display: block; color: #666; margin-top: 5px;" data-i18n="temperature_help">
-              温度值控制AI回复的创造性：0.0-0.3保守准确，0.4-0.7平衡，0.8-2.0创意发散
-            </small>
-          </div>
-          <div class="form-group">
-            <label for="promptContent" data-i18n="prompt_content">提示词内容:</label>
-            <textarea id="promptContent" rows="8" style="width:100%; resize: vertical;"
-                      data-i18n-placeholder="prompt_content" placeholder="输入提示词内容..."></textarea>
-          </div>
-
-          <!-- 可用变量帮助 -->
-          <div class="form-group">
-            <label data-i18n="available_variables">可用变量:</label>
-            <div id="variableHelp" style="margin-top: 5px;">
-              <!-- 变量按钮将由JS动态生成 -->
-            </div>
-            <small style="display: block; color: #666; margin-top: 5px;" data-i18n="variable_help">
-              点击变量名插入到提示词中
-            </small>
-          </div>
-
-          <div style="display: flex; gap: 10px; margin-top: 15px;">
-            <button id="savePromptBtn" class="btn-primary" data-i18n="save_prompt">保存提示词</button>
-            <button id="cancelPromptBtn" class="btn-secondary" data-i18n="cancel_edit">取消编辑</button>
-          </div>
-        </div>
-
-        <!-- 提示词操作按钮 -->
-        <div class="action-buttons" style="margin-top: 15px;">
-          <button id="exportPromptsBtn" class="btn-secondary" data-i18n="export_prompts">导出提示词</button>
-          <button id="importPromptsBtn" class="btn-secondary" data-i18n="import_prompts">导入提示词</button>
-          <button id="resetPromptsBtn" class="btn-danger" data-i18n="reset_prompts">重置为默认</button>
-        </div>
-      </div>
-
-              <!-- 设置Tab -->
-        <div class="tab-content" id="settings-tab">
-          <div class="form-group">
-            <label for="defaultLang" data-i18n="default_lang">默认翻译语言:</label>
-            <select id="defaultLang">
-              <option value="Chinese">中文</option>
-              <option value="English">英文</option>
-              <option value="Japanese">日文</option>
-              <option value="Korean">韩文</option>
-              <option value="French">法文</option>
-              <option value="German">德文</option>
-              <option value="Spanish">西班牙文</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="apiFailover">API自动故障转移:</label>
-            <input type="checkbox" id="apiFailover">
-            <small style="display: block; color: #666; margin-top: 5px;">
-              开启后，当主API失败时会自动尝试其他配置的API
-            </small>
-          </div>
-          <div class="action-buttons" style="margin-top: 15px;">
-            <button id="exportBtn" class="btn-secondary" data-i18n="export_configs">导出所有配置</button>
-            <button id="importBtn" class="btn-secondary" data-i18n="import_configs">导入配置</button>
-          </div>
-        </div>
-    </div>
-    
-    <div id="statusArea"></div>
-  </div>
-
-  <!-- 删除确认弹窗 -->
-  <div class="modal" id="deleteModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="delete_config_title">确认删除</h3>
-        <span class="modal-close">&times;</span>
-      </div>
-      <div class="modal-body">
-        <p data-i18n="delete_config_message">确定要删除此配置吗？此操作无法撤销。</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" id="cancelDeleteBtn" data-i18n="cancel">取消</button>
-        <button class="btn-danger" id="confirmDeleteBtn" data-i18n="delete">删除</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 导入配置弹窗 -->
-  <div class="modal" id="importModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="import_config_title">导入配置</h3>
-        <span class="modal-close">&times;</span>
-      </div>
-      <div class="modal-body">
         <div class="form-group">
-          <label for="importText" data-i18n="import_config_message">粘贴导出的配置数据:</label>
-          <textarea id="importText" rows="5" style="width:100%;" data-i18n-placeholder="import_config_placeholder" placeholder="在此粘贴配置数据..."></textarea>
+          <label for="promptTemperature" data-i18n="prompt_temperature">温度值 (0.0-2.0):</label>
+          <input type="number" id="promptTemperature" min="0" max="2" step="0.1" value="0.7">
+          <small style="display: block; color: #666; margin-top: 5px;" data-i18n="temperature_help">
+            温度值控制AI回复的创造性：0.0-0.3保守准确，0.4-0.7平衡，0.8-2.0创意发散
+          </small>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" id="cancelImportBtn" data-i18n="cancel">取消</button>
-        <button class="btn-primary" id="confirmImportBtn" data-i18n="import">导入</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 删除提示词确认弹窗 -->
-  <div class="modal" id="deletePromptModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="delete_prompt_title">删除提示词</h3>
-        <span class="modal-close">&times;</span>
-      </div>
-      <div class="modal-body">
-        <p data-i18n="delete_prompt_message">确定要删除这个提示词吗？此操作无法撤销。</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" id="cancelDeletePromptBtn" data-i18n="cancel">取消</button>
-        <button class="btn-danger" id="confirmDeletePromptBtn" data-i18n="delete">删除</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 导入提示词弹窗 -->
-  <div class="modal" id="importPromptsModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="import_prompts_title">导入提示词</h3>
-        <span class="modal-close">&times;</span>
-      </div>
-      <div class="modal-body">
         <div class="form-group">
-          <label for="importPromptsText" data-i18n="import_prompts_message">粘贴提示词数据:</label>
-          <textarea id="importPromptsText" rows="5" style="width:100%;"
-                    data-i18n-placeholder="import_config_placeholder" placeholder="在此粘贴提示词数据..."></textarea>
+          <label for="promptContent" data-i18n="prompt_content">提示词内容:</label>
+          <textarea id="promptContent" rows="8" style="width:100%; resize: vertical;"
+                    data-i18n-placeholder="prompt_content" placeholder="输入提示词内容..."></textarea>
+        </div>
+
+        <!-- 可用变量帮助 -->
+        <div class="form-group">
+          <label data-i18n="available_variables">可用变量:</label>
+          <div id="variableHelp" style="margin-top: 5px;">
+            <!-- 变量按钮将由JS动态生成 -->
+          </div>
+          <small style="display: block; color: #666; margin-top: 5px;" data-i18n="variable_help">
+            点击变量名插入到提示词中
+          </small>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+          <button id="savePromptBtn" class="btn-primary" data-i18n="save_prompt">保存提示词</button>
+          <button id="cancelPromptBtn" class="btn-secondary" data-i18n="cancel_edit">取消编辑</button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" id="cancelImportPromptsBtn" data-i18n="cancel">取消</button>
-        <button class="btn-primary" id="confirmImportPromptsBtn" data-i18n="import">导入</button>
+
+      <!-- 提示词操作按钮 -->
+      <div class="action-buttons" style="margin-top: 15px;">
+        <button id="exportPromptsBtn" class="btn-secondary" data-i18n="export_prompts">导出提示词</button>
+        <button id="importPromptsBtn" class="btn-secondary" data-i18n="import_prompts">导入提示词</button>
+        <button id="resetPromptsBtn" class="btn-danger" data-i18n="reset_prompts">重置为默认</button>
+      </div>
+    </div>
+
+    <!-- 设置Tab -->
+    <div class="tab-content" id="settings-tab">
+      <div class="form-group">
+        <label for="defaultLang" data-i18n="default_lang">默认翻译语言:</label>
+        <select id="defaultLang">
+          <option value="Chinese">中文</option>
+          <option value="English">英文</option>
+          <option value="Japanese">日文</option>
+          <option value="Korean">韩文</option>
+          <option value="French">法文</option>
+          <option value="German">德文</option>
+          <option value="Spanish">西班牙文</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="apiFailover" data-i18n="api_failover_label">API自动故障转移:</label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" id="apiFailover" style="width: auto; height: auto;">
+          <small style="margin: 0;" data-i18n="api_failover_desc">
+            开启后，当主API失败时会自动尝试其他配置的API
+          </small>
+        </div>
+      </div>
+      <div class="action-buttons" style="margin-top: 24px;">
+        <button id="exportBtn" class="btn-secondary" data-i18n="export_configs">导出所有配置</button>
+        <button id="importBtn" class="btn-secondary" data-i18n="import_configs">导入配置</button>
       </div>
     </div>
   </div>
+  
+  <div id="statusArea"></div>
+</div>
 
-  <!-- 重置提示词确认弹窗 -->
-  <div class="modal" id="resetPromptsModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="reset_prompts_title">重置提示词</h3>
-        <span class="modal-close">&times;</span>
-      </div>
-      <div class="modal-body">
-        <p data-i18n="reset_prompts_message">确定要重置为默认提示词吗？这将删除所有自定义提示词。</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" id="cancelResetPromptsBtn" data-i18n="cancel">取消</button>
-        <button class="btn-danger" id="confirmResetPromptsBtn" data-i18n="confirm">确认</button>
-      </div>
+<!-- 删除确认弹窗 -->
+<div class="modal" id="deleteModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 data-i18n="delete_config_title">确认删除</h3>
+      <span class="modal-close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p data-i18n="delete_config_message">确定要删除此配置吗？此操作无法撤销。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="cancelDeleteBtn" data-i18n="cancel">取消</button>
+      <button class="btn-danger" id="confirmDeleteBtn" data-i18n="delete">删除</button>
     </div>
   </div>
+</div>
 
-  <!-- 引入语言包和国际化管理器 -->
-  <script src="locales/zh.js"></script>
-  <script src="locales/en.js"></script>
-  <script src="js/i18n.js"></script>
-  <script src="js/prompt-templates.js"></script>
-  <script src="popup.js"></script>
+<!-- 导入配置弹窗 -->
+<div class="modal" id="importModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 data-i18n="import_config_title">导入配置</h3>
+      <span class="modal-close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="importText" data-i18n="import_config_message">粘贴导出的配置数据:</label>
+        <textarea id="importText" rows="5" style="width:100%;" data-i18n-placeholder="import_config_placeholder" placeholder="在此粘贴配置数据..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="cancelImportBtn" data-i18n="cancel">取消</button>
+      <button class="btn-primary" id="confirmImportBtn" data-i18n="import">导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除提示词确认弹窗 -->
+<div class="modal" id="deletePromptModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 data-i18n="delete_prompt_title">删除提示词</h3>
+      <span class="modal-close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p data-i18n="delete_prompt_message">确定要删除这个提示词吗？此操作无法撤销。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="cancelDeletePromptBtn" data-i18n="cancel">取消</button>
+      <button class="btn-danger" id="confirmDeletePromptBtn" data-i18n="delete">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导入提示词弹窗 -->
+<div class="modal" id="importPromptsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 data-i18n="import_prompts_title">导入提示词</h3>
+      <span class="modal-close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="importPromptsText" data-i18n="import_prompts_message">粘贴提示词数据:</label>
+        <textarea id="importPromptsText" rows="5" style="width:100%;"
+                  data-i18n-placeholder="import_config_placeholder" placeholder="在此粘贴提示词数据..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="cancelImportPromptsBtn" data-i18n="cancel">取消</button>
+      <button class="btn-primary" id="confirmImportPromptsBtn" data-i18n="import">导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重置提示词确认弹窗 -->
+<div class="modal" id="resetPromptsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 data-i18n="reset_prompts_title">重置提示词</h3>
+      <span class="modal-close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p data-i18n="reset_prompts_message">确定要重置为默认提示词吗？这将删除所有自定义提示词。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="cancelResetPromptsBtn" data-i18n="cancel">取消</button>
+      <button class="btn-danger" id="confirmResetPromptsBtn" data-i18n="confirm">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 引入语言包和国际化管理器 -->
+<script src="locales/zh.js"></script>
+<script src="locales/en.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/prompt-templates.js"></script>
+<script src="popup.js"></script>
 </body>
 </html>
