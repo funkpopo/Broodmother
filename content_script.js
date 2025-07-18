@@ -223,6 +223,168 @@ function extractTextFromRegion(selectionRatios) {
   return selectedTexts.join('\n');
 }
 
+// ====== 选区翻译浮动按钮与气泡实现 ======
+let selectionButton = null;
+let translationBubble = null;
+let lastSelectionText = '';
+let lastSelectionRect = null;
+
+function removeSelectionButton() {
+  if (selectionButton) {
+    selectionButton.remove();
+    selectionButton = null;
+  }
+}
+
+function removeTranslationBubble() {
+  if (translationBubble) {
+    translationBubble.remove();
+    translationBubble = null;
+  }
+}
+
+function getSelectionRect() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return null;
+  const range = selection.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return null;
+  return rect;
+}
+
+function showSelectionButton(rect) {
+  removeSelectionButton();
+  removeTranslationBubble();
+  if (!rect) return;
+  selectionButton = document.createElement('button');
+  selectionButton.textContent = '翻译';
+  selectionButton.className = 'bm-translate-btn';
+  selectionButton.style.position = 'fixed';
+  selectionButton.style.left = `${rect.left + rect.width / 2 - 24}px`;
+  selectionButton.style.top = `${rect.bottom + 8}px`;
+  selectionButton.style.zIndex = '2147483647';
+  selectionButton.style.padding = '4px 14px';
+  selectionButton.style.borderRadius = '6px';
+  selectionButton.style.border = '1px solid #cce0ff';
+  selectionButton.style.background = '#f0f8ff';
+  selectionButton.style.color = '#333';
+  selectionButton.style.fontSize = '14px';
+  selectionButton.style.boxShadow = '0 2px 8px rgba(0,0,0,0.10)';
+  selectionButton.style.cursor = 'pointer';
+  selectionButton.style.transition = 'background 0.2s';
+  selectionButton.onmouseenter = () => selectionButton.style.background = '#e6f0ff';
+  selectionButton.onmouseleave = () => selectionButton.style.background = '#f0f8ff';
+  selectionButton.onclick = () => {
+    selectionButton.disabled = true;
+    selectionButton.textContent = '翻译中...';
+    requestTranslation(lastSelectionText, rect);
+  };
+  document.body.appendChild(selectionButton);
+}
+
+function showTranslationBubble(text, rect, isError = false) {
+  removeTranslationBubble();
+  translationBubble = document.createElement('div');
+  translationBubble.className = 'bm-translate-bubble';
+  translationBubble.style.position = 'fixed';
+  translationBubble.style.left = `${rect.left}px`;
+  translationBubble.style.top = `${rect.bottom + 36}px`;
+  translationBubble.style.minWidth = '120px';
+  translationBubble.style.maxWidth = '360px';
+  translationBubble.style.padding = '12px 16px 12px 16px';
+  translationBubble.style.borderRadius = '8px';
+  translationBubble.style.background = isError ? '#fff0f0' : '#f0f8ff';
+  translationBubble.style.color = isError ? '#b00020' : '#333';
+  translationBubble.style.border = `1px solid ${isError ? '#ffcccc' : '#cce0ff'}`;
+  translationBubble.style.boxShadow = '0 4px 16px rgba(0,0,0,0.13)';
+  translationBubble.style.zIndex = '2147483647';
+  translationBubble.style.fontSize = '15px';
+  translationBubble.style.lineHeight = '1.7';
+  translationBubble.style.wordBreak = 'break-word';
+  translationBubble.style.fontFamily = '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif';
+  translationBubble.innerText = text;
+  // 关闭按钮
+  const closeBtn = document.createElement('span');
+  closeBtn.textContent = '×';
+  closeBtn.style.position = 'absolute';
+  closeBtn.style.top = '8px';
+  closeBtn.style.right = '14px';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.style.fontSize = '18px';
+  closeBtn.style.color = '#aaa';
+  closeBtn.onmouseenter = () => closeBtn.style.color = '#333';
+  closeBtn.onmouseleave = () => closeBtn.style.color = '#aaa';
+  closeBtn.onclick = removeTranslationBubble;
+  translationBubble.appendChild(closeBtn);
+  document.body.appendChild(translationBubble);
+}
+
+function requestTranslation(text, rect) {
+  removeTranslationBubble();
+  // 兼容Chrome/Firefox
+  const runtime = window.chrome?.runtime || window.browser?.runtime;
+  if (!runtime) {
+    showTranslationBubble('无法访问扩展API', rect, true);
+    return;
+  }
+  runtime.sendMessage({ action: 'translateSelection', text: text }, (response) => {
+    if (!response) {
+      showTranslationBubble('未收到翻译响应', rect, true);
+      return;
+    }
+    if (response.error) {
+      showTranslationBubble('翻译失败: ' + response.error, rect, true);
+    } else if (response.translatedText) {
+      showTranslationBubble(response.translatedText, rect, false);
+    } else {
+      showTranslationBubble('未知翻译响应', rect, true);
+    }
+    removeSelectionButton();
+  });
+}
+
+function handleSelectionChange() {
+  setTimeout(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+      removeSelectionButton();
+      removeTranslationBubble();
+      lastSelectionText = '';
+      lastSelectionRect = null;
+      return;
+    }
+    const rect = getSelectionRect();
+    if (!rect) {
+      removeSelectionButton();
+      removeTranslationBubble();
+      lastSelectionText = '';
+      lastSelectionRect = null;
+      return;
+    }
+    lastSelectionText = selection.toString().trim();
+    lastSelectionRect = rect;
+    showSelectionButton(rect);
+  }, 80);
+}
+
+document.addEventListener('mouseup', handleSelectionChange);
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Meta' || e.key === 'Alt') return;
+  handleSelectionChange();
+});
+document.addEventListener('scroll', () => {
+  removeSelectionButton();
+  removeTranslationBubble();
+}, true);
+document.addEventListener('mousedown', (e) => {
+  if (selectionButton && !selectionButton.contains(e.target)) {
+    removeSelectionButton();
+  }
+  if (translationBubble && !translationBubble.contains(e.target)) {
+    removeTranslationBubble();
+  }
+});
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) {
     console.warn("Message received from unknown sender:", sender);

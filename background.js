@@ -363,6 +363,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true; // 异步响应
     }
+  } else if (request.action === 'translateSelection' && request.text) {
+    performTranslation(request.text, (result) => {
+      sendResponse(result);
+    });
+    return true; // 异步响应
   }
   
   return true;
