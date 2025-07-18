@@ -24,12 +24,23 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
-  "sidebar_action": {
-    "default_title": "Broodmother Sidebar",
-    "default_panel": "sidepanel.html"
-  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sidepanel.html",
+        "sidepanel.js",
+        "sidepanel.css",
+        "assets/bootstrap/css/bootstrap.min.css",
+        "assets/bootstrap/js/bootstrap.bundle.min.js",
+        "assets/bootstrap/js/marked.min.js",
+        "locales/en.js",
+        "locales/zh.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "browser_specific_settings": {
     "gecko": {
       "id": "broodmother@ai-translator.extension"

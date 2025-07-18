@@ -297,5 +297,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ error: "Error extracting all text: " + e.message });
     }
     return true;
+  } else if (request.action === "showSidebar") {
+    // 注入或显示自定义侧栏
+    let sidebar = document.getElementById('broodmother-sidebar-container');
+    if (!sidebar) {
+      sidebar = document.createElement('div');
+      sidebar.id = 'broodmother-sidebar-container';
+      sidebar.style.position = 'fixed';
+      sidebar.style.top = '0';
+      sidebar.style.right = '0';
+      sidebar.style.width = '400px';
+      sidebar.style.height = '100vh';
+      sidebar.style.zIndex = '2147483647';
+      sidebar.style.background = '#fff';
+      sidebar.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.15)';
+      sidebar.style.borderLeft = '1px solid #e5e7eb';
+      sidebar.style.display = 'flex';
+      sidebar.style.flexDirection = 'column';
+      sidebar.style.transition = 'right 0.2s';
+      sidebar.innerHTML = `<iframe src="${chrome.runtime.getURL('sidepanel.html')}" style="width:100%;height:100%;border:none;"></iframe>`;
+      document.body.appendChild(sidebar);
+      // 监听关闭消息
+      window.addEventListener('message', function handleCloseSidebar(event) {
+        if (event.data && event.data.action === 'closeBroodmotherSidebar') {
+          sidebar.remove();
+          window.removeEventListener('message', handleCloseSidebar);
+        }
+      });
+    } else {
+      sidebar.style.display = 'flex';
+    }
+    return true;
   }
 });

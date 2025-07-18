@@ -1952,3 +1952,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+  var closeBtn = document.getElementById('closeSidebarBtn');
+  if (closeBtn) {
+    closeBtn.onclick = function() {
+      if (window.parent !== window) {
+        window.parent.postMessage({ action: 'closeBroodmotherSidebar' }, '*');
+      }
+    };
+  }
+});

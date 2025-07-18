@@ -307,12 +307,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       });
     });
   } else if (info.menuItemId === "broodmother_parse" && tab && tab.id) {
-    // Firefox专用：打开侧边栏
-    if (browser && browser.sidebarAction) {
-      browser.sidebarAction.open();
-    } else {
-      console.warn('sidebarAction API不可用');
-    }
+    // 统一通过消息通知 content_script 注入/显示侧栏
+    chrome.tabs.sendMessage(tab.id, { action: "showSidebar" });
   }
 });
 
