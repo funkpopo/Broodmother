@@ -906,6 +906,98 @@ chrome.runtime.onConnect.addListener((port) => {
   }
 });
 
+// ========== 新增：监听流式翻译请求 ==========
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'stream') {
+    port.onMessage.addListener(async (msg) => {
+      if (msg.action === 'translateSelectionStream' && msg.text) {
+        try {
+          chrome.storage.sync.get(['configs', 'currentConfigId', 'defaultLanguage'], async (result) => {
+            const configs = result.configs || [];
+            const currentConfigId = result.currentConfigId;
+            const defaultLanguage = result.defaultLanguage || 'Chinese';
+            const config = configs.find(c => c.id === currentConfigId) || configs[0];
+            if (!config || !config.apiUrl || !config.apiKey) {
+              port.postMessage({ action: 'streamError', error: '未找到有效API配置' });
+              return;
+            }
+            const apiUrl = config.apiUrl;
+            const apiKey = config.apiKey;
+            // 兼容popup.js保存的modelName字段
+            const model = config.modelName || config.model || 'gpt-3.5-turbo';
+            const requestBody = {
+              model: model,
+              messages: [
+                { role: 'system', content: 'You are a translation assistant.' },
+                { role: 'user', content: `Translate the following text into ${defaultLanguage}:\n${msg.text}` }
+              ],
+              stream: true
+            };
+            try {
+              const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ' + apiKey
+                },
+                body: JSON.stringify(requestBody)
+              });
+              if (!response.ok) {
+                const errorText = await response.text();
+                port.postMessage({ action: 'streamError', error: `API错误: ${response.status} ${response.statusText}\n${errorText}` });
+                return;
+              }
+              // OpenAI流式响应处理
+              const reader = response.body.getReader();
+              const decoder = new TextDecoder('utf-8');
+              let buffer = '';
+              let done = false;
+              let fullContent = '';
+              while (!done) {
+                const { value, done: streamDone } = await reader.read();
+                if (value) {
+                  const chunk = decoder.decode(value, { stream: true });
+                  buffer += chunk;
+                  // 解析OpenAI流式数据格式（data: ...\n）
+                  const lines = buffer.split('\n');
+                  buffer = lines.pop(); // 可能为不完整行，留待下次
+                  for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed || !trimmed.startsWith('data:')) continue;
+                    if (trimmed === 'data: [DONE]') {
+                      port.postMessage({ action: 'streamUpdate', chunk: '', fullContent, isComplete: true });
+                      return;
+                    }
+                    try {
+                      const payload = JSON.parse(trimmed.replace('data: ',''));
+                      const delta = payload.choices?.[0]?.delta?.content || '';
+                      if (delta) {
+                        fullContent += delta;
+                        port.postMessage({ action: 'streamUpdate', chunk: delta, fullContent, isComplete: false });
+                      }
+                    } catch (e) {
+                      // 忽略解析失败
+                    }
+                  }
+                }
+                done = streamDone;
+              }
+              port.postMessage({ action: 'streamUpdate', chunk: '', fullContent, isComplete: true });
+            } catch (e) {
+              port.postMessage({ action: 'streamError', error: e.message });
+            }
+          });
+        } catch (e) {
+          port.postMessage({ action: 'streamError', error: e.message });
+        }
+      }
+    });
+    port.onDisconnect.addListener(() => {
+      // 清理逻辑
+    });
+  }
+});
+
 // 处理流式响应
 async function handleStreamResponse(response, sendResponse, isSelection, responseId, controller) {
   const reader = response.body.getReader();

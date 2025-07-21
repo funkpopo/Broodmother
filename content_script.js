@@ -226,6 +226,8 @@ function extractTextFromRegion(selectionRatios) {
 // ====== 选区翻译浮动按钮与气泡实现 ======
 let selectionButton = null;
 let translationBubble = null;
+let streamingBubble = null;
+let streamingRect = null;
 let lastSelectionText = '';
 let lastSelectionRect = null;
 
@@ -238,8 +240,17 @@ function removeSelectionButton() {
 
 function removeTranslationBubble() {
   if (translationBubble) {
+    if (translationBubble._unbind) translationBubble._unbind();
     translationBubble.remove();
     translationBubble = null;
+  }
+}
+
+function removeStreamingBubble() {
+  if (streamingBubble) {
+    if (streamingBubble._unbind) streamingBubble._unbind();
+    streamingBubble.remove();
+    streamingBubble = null;
   }
 }
 
@@ -255,6 +266,7 @@ function getSelectionRect() {
 function showSelectionButton(rect) {
   removeSelectionButton();
   removeTranslationBubble();
+  removeStreamingBubble();
   if (!rect) return;
   selectionButton = document.createElement('button');
   selectionButton.textContent = '翻译';
@@ -282,15 +294,76 @@ function showSelectionButton(rect) {
   document.body.appendChild(selectionButton);
 }
 
+function findNearestPositionedAncestor(node) {
+  let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  while (el && el !== document.body) {
+    const pos = window.getComputedStyle(el).position;
+    if (pos === 'relative' || pos === 'absolute' || pos === 'fixed') {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return document.body;
+}
+
+function findBestBubbleContainer(node) {
+  let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  let lastNonBody = null;
+  while (el && el !== document.body) {
+    const pos = window.getComputedStyle(el).position;
+    if (pos === 'relative' || pos === 'absolute' || pos === 'fixed') {
+      return el;
+    }
+    lastNonBody = el;
+    el = el.parentElement;
+  }
+  return lastNonBody || document.body;
+}
+
+function getBubbleRelativeRect(rect, container) {
+  const containerRect = container.getBoundingClientRect();
+  return {
+    left: rect.left - containerRect.left + container.scrollLeft,
+    top: rect.bottom - containerRect.top + container.scrollTop + 8
+  };
+}
+
+let bubbleRelocateObserver = null;
+function setupBubbleRelocation(bubble, rect, container, updateFn) {
+  function relocate() {
+    const rel = getBubbleRelativeRect(rect, container);
+    updateFn(rel);
+  }
+  // 监听容器滚动和resize
+  container.addEventListener('scroll', relocate, true);
+  window.addEventListener('resize', relocate, true);
+  // 可选：监听DOM变化
+  if (bubbleRelocateObserver) bubbleRelocateObserver.disconnect();
+  bubbleRelocateObserver = new MutationObserver(relocate);
+  bubbleRelocateObserver.observe(container, { attributes: true, childList: true, subtree: false });
+  // 返回解绑函数
+  return () => {
+    container.removeEventListener('scroll', relocate, true);
+    window.removeEventListener('resize', relocate, true);
+    if (bubbleRelocateObserver) bubbleRelocateObserver.disconnect();
+  };
+}
+
 function showTranslationBubble(text, rect, isError = false) {
   removeTranslationBubble();
+  const selection = window.getSelection();
+  let range = selection && selection.rangeCount ? selection.getRangeAt(0) : null;
+  let anchorNode = range ? range.startContainer : null;
+  let container = anchorNode ? findBestBubbleContainer(anchorNode) : document.body;
+  if (!container) container = document.body;
+  const rel = getBubbleRelativeRect(rect, container);
   translationBubble = document.createElement('div');
   translationBubble.className = 'bm-translate-bubble';
-  translationBubble.style.position = 'fixed';
-  translationBubble.style.left = `${rect.left}px`;
-  translationBubble.style.top = `${rect.bottom + 36}px`;
+  translationBubble.style.position = 'absolute';
+  translationBubble.style.left = `${rel.left}px`;
+  translationBubble.style.top = `${rel.top}px`;
   translationBubble.style.minWidth = '120px';
-  translationBubble.style.maxWidth = '360px';
+  translationBubble.style.maxWidth = container.clientWidth + 'px';
   translationBubble.style.padding = '12px 16px 12px 16px';
   translationBubble.style.borderRadius = '8px';
   translationBubble.style.background = isError ? '#fff0f0' : '#f0f8ff';
@@ -303,7 +376,6 @@ function showTranslationBubble(text, rect, isError = false) {
   translationBubble.style.wordBreak = 'break-word';
   translationBubble.style.fontFamily = '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif';
   translationBubble.innerText = text;
-  // 关闭按钮
   const closeBtn = document.createElement('span');
   closeBtn.textContent = '×';
   closeBtn.style.position = 'absolute';
@@ -316,31 +388,90 @@ function showTranslationBubble(text, rect, isError = false) {
   closeBtn.onmouseleave = () => closeBtn.style.color = '#aaa';
   closeBtn.onclick = removeTranslationBubble;
   translationBubble.appendChild(closeBtn);
-  document.body.appendChild(translationBubble);
+  container.appendChild(translationBubble);
+  // 动态定位
+  let unbind = setupBubbleRelocation(translationBubble, rect, container, rel => {
+    translationBubble.style.left = `${rel.left}px`;
+    translationBubble.style.top = `${rel.top}px`;
+  });
+  translationBubble._unbind = unbind;
 }
 
+function showStreamingBubble(text, isError = false) {
+  removeStreamingBubble();
+  if (!streamingRect) return;
+  const selection = window.getSelection();
+  let range = selection && selection.rangeCount ? selection.getRangeAt(0) : null;
+  let anchorNode = range ? range.startContainer : null;
+  let container = anchorNode ? findBestBubbleContainer(anchorNode) : document.body;
+  if (!container) container = document.body;
+  const rel = getBubbleRelativeRect(streamingRect, container);
+  streamingBubble = document.createElement('div');
+  streamingBubble.className = 'bm-translate-bubble';
+  streamingBubble.style.position = 'absolute';
+  streamingBubble.style.left = `${rel.left}px`;
+  streamingBubble.style.top = `${rel.top}px`;
+  streamingBubble.style.minWidth = '60px';
+  streamingBubble.style.maxWidth = container.clientWidth + 'px';
+  streamingBubble.style.width = `${Math.max(60, Math.min(container.clientWidth, streamingRect.width))}px`;
+  streamingBubble.style.padding = '12px 16px 12px 16px';
+  streamingBubble.style.borderRadius = '8px';
+  streamingBubble.style.background = isError ? '#fff0f0' : '#f0f8ff';
+  streamingBubble.style.color = isError ? '#b00020' : '#333';
+  streamingBubble.style.border = `1px solid ${isError ? '#ffcccc' : '#cce0ff'}`;
+  streamingBubble.style.boxShadow = '0 4px 16px rgba(0,0,0,0.13)';
+  streamingBubble.style.zIndex = '2147483647';
+  streamingBubble.style.fontSize = '15px';
+  streamingBubble.style.lineHeight = '1.7';
+  streamingBubble.style.wordBreak = 'break-word';
+  streamingBubble.style.fontFamily = '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif';
+  streamingBubble.innerText = text;
+  container.appendChild(streamingBubble);
+  // 动态定位
+  let unbind = setupBubbleRelocation(streamingBubble, streamingRect, container, rel => {
+    streamingBubble.style.left = `${rel.left}px`;
+    streamingBubble.style.top = `${rel.top}px`;
+  });
+  streamingBubble._unbind = unbind;
+}
+
+function removeStreamPort() {
+  if (streamPort) {
+    try { streamPort.disconnect(); } catch (e) {}
+    streamPort = null;
+  }
+}
+
+// ========== 修改 requestTranslation，优先流式 ==========
 function requestTranslation(text, rect) {
   removeTranslationBubble();
+  removeStreamingBubble();
   // 兼容Chrome/Firefox
   const runtime = window.chrome?.runtime || window.browser?.runtime;
   if (!runtime) {
     showTranslationBubble('无法访问扩展API', rect, true);
     return;
   }
-  runtime.sendMessage({ action: 'translateSelection', text: text }, (response) => {
-    if (!response) {
-      showTranslationBubble('未收到翻译响应', rect, true);
-      return;
-    }
-    if (response.error) {
-      showTranslationBubble('翻译失败: ' + response.error, rect, true);
-    } else if (response.translatedText) {
-      showTranslationBubble(response.translatedText, rect, false);
-    } else {
-      showTranslationBubble('未知翻译响应', rect, true);
-    }
-    removeSelectionButton();
-  });
+  // 优先尝试流式
+  try {
+    startStreamingTranslation(text, rect);
+  } catch (e) {
+    // 回退
+    runtime.sendMessage({ action: 'translateSelection', text: text }, (response) => {
+      if (!response) {
+        showTranslationBubble('未收到翻译响应', rect, true);
+        return;
+      }
+      if (response.error) {
+        showTranslationBubble('翻译失败: ' + response.error, rect, true);
+      } else if (response.translatedText) {
+        showTranslationBubble(response.translatedText, rect, false);
+      } else {
+        showTranslationBubble('未知翻译响应', rect, true);
+      }
+      removeSelectionButton();
+    });
+  }
 }
 
 function handleSelectionChange() {
@@ -349,6 +480,7 @@ function handleSelectionChange() {
     if (!selection || selection.isCollapsed || !selection.toString().trim()) {
       removeSelectionButton();
       removeTranslationBubble();
+      removeStreamingBubble();
       lastSelectionText = '';
       lastSelectionRect = null;
       return;
@@ -357,6 +489,7 @@ function handleSelectionChange() {
     if (!rect) {
       removeSelectionButton();
       removeTranslationBubble();
+      removeStreamingBubble();
       lastSelectionText = '';
       lastSelectionRect = null;
       return;
@@ -375,6 +508,7 @@ document.addEventListener('keyup', (e) => {
 document.addEventListener('scroll', () => {
   removeSelectionButton();
   removeTranslationBubble();
+  removeStreamingBubble();
 }, true);
 document.addEventListener('mousedown', (e) => {
   if (selectionButton && !selectionButton.contains(e.target)) {
@@ -383,7 +517,126 @@ document.addEventListener('mousedown', (e) => {
   if (translationBubble && !translationBubble.contains(e.target)) {
     removeTranslationBubble();
   }
+  if (streamingBubble && !streamingBubble.contains(e.target)) {
+    removeStreamingBubble();
+  }
 });
+
+// == 划词翻译插入实现 ==
+(function() {
+    const STYLE_ID = 'bm-translate-style';
+    const RESULT_CLASS = 'bm-translate-result';
+    const CLOSE_CLASS = 'bm-translate-close';
+    const BG_COLOR = '#FFF9C4';
+
+    // 注入样式
+    function injectStyle() {
+        if (document.getElementById(STYLE_ID)) return;
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = `
+            .${RESULT_CLASS} {
+                background: ${BG_COLOR};
+                border-radius: 4px;
+                padding: 2px 8px 2px 6px;
+                margin-left: 4px;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+                display: inline-flex;
+                align-items: center;
+                font-size: 90%;
+                z-index: 2147483647;
+            }
+            .${CLOSE_CLASS} {
+                background: #ffe082;
+                border: none;
+                border-radius: 50%;
+                width: 18px;
+                height: 18px;
+                margin-left: 6px;
+                cursor: pointer;
+                font-size: 14px;
+                line-height: 18px;
+                color: #555;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s;
+            }
+            .${CLOSE_CLASS}:hover {
+                background: #ffd54f;
+                color: #222;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // 关闭按钮事件
+    function onClose(e) {
+        const span = e.target.closest('.' + RESULT_CLASS);
+        if (span) span.remove();
+        e.stopPropagation();
+    }
+
+    // 插入翻译结果
+    function insertTranslation(text) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        if (range.collapsed) return;
+
+        // 避免重复插入
+        removeExistingResults();
+
+        // 构造节点
+        const span = document.createElement('span');
+        span.className = RESULT_CLASS;
+        span.style.userSelect = 'none';
+        span.tabIndex = -1;
+        span.innerText = text;
+        // 关闭按钮
+        const btn = document.createElement('button');
+        btn.className = CLOSE_CLASS;
+        btn.type = 'button';
+        btn.innerText = '×';
+        btn.title = '关闭翻译';
+        btn.addEventListener('click', onClose);
+        span.appendChild(btn);
+
+        // 插入到选区后
+        const afterRange = range.cloneRange();
+        afterRange.collapse(false);
+        afterRange.insertNode(span);
+        // 取消选区
+        sel.removeAllRanges();
+    }
+
+    // 移除所有已插入的翻译结果
+    function removeExistingResults() {
+        document.querySelectorAll('.' + RESULT_CLASS).forEach(e => e.remove());
+    }
+
+    // 监听划词
+    document.addEventListener('mouseup', function(e) {
+        setTimeout(() => {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+            const text = sel.toString().trim();
+            if (text) {
+                // 这里调用翻译API，示例用Promise.resolve模拟
+                // 替换为实际API调用即可
+                Promise.resolve('[翻译]' + text).then(result => {
+                    injectStyle();
+                    insertTranslation(result);
+                });
+            }
+        }, 10);
+    });
+
+    // 可选：监听键盘Esc移除所有翻译
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') removeExistingResults();
+    });
+})();
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) {
